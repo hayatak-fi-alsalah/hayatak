@@ -38,6 +38,16 @@ function methodFor() {
   if (inb(41, 51.5, -5.5, 9.8)) return 12;         // France
   return 3;                                        // MWL elsewhere
 }
+async function geoName(lat, lon) {
+  const key = 'geo.' + lat.toFixed(3) + '.' + lon.toFixed(3), c = store.get(key); if (c) return c;
+  let nm = null;
+  try { const j = await fetchJ(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=14&addressdetails=1&accept-language=ar&lat=${lat}&lon=${lon}`, 8000); const a = j.address || {};
+    const city = a.city || a.town || a.village || a.state || a.county, sub = a.suburb || a.city_district || a.neighbourhood || a.quarter || a.district;
+    const state = a.state && a.state !== city ? a.state : null; nm = [state || city, sub && sub !== (state || city) ? sub : (state && city && city !== state ? city : null)].filter(Boolean).join('، ') || null; } catch (e) {}
+  if (!nm) { try { const j = await fetchJ(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=ar`, 8000); nm = [j.principalSubdivision, j.city || j.locality].filter((x, i, a) => x && a.indexOf(x) === i).join('، ') || null; } catch (e) {} }
+  if (nm) store.set(key, nm); return nm;
+}
+async function nameGps() { if (!place || place.id !== 'gps') return; const nm = await geoName(place.lat, place.lon); if (nm && place.id === 'gps') { place.name = nm; store.set('place', place); render(); } }
 let place = store.get('place', { id: 'cairo', name: 'القاهرة', lat: 30.0444, lon: 31.2357 });
 let day = null, tomorrow = null, ready = false;
 const to12 = t => { const [h, m] = t.split(' ')[0].split(':').map(Number); return num(h % 12 || 12) + ':' + num(String(m).padStart(2, '0')) + ' ' + (h >= 12 ? 'م' : 'ص'); };
@@ -95,9 +105,17 @@ function sheet(date, k) {
   let el = $('#sheet'); if (!el) { el = document.createElement('div'); el.id = 'sheet'; document.body.appendChild(el); }
   el.innerHTML = `<div class="shbg" data-shclose></div><div class="shp"><h3>${n}</h3><div class="muted">الوقت</div><div class="chips">${o('w', 'on', 'في الوقت', st)}${o('w', 'late', 'متأخرة', st)}${o('w', 'x', 'فائتة', st)}</div><div class="muted">طريقة الصلاة</div><div class="chips">${o('m', 'a', 'فردي', m)}${o('m', 'c', 'جماعة', m)}${o('m', 'm', 'في المسجد', m)}</div><div class="muted" style="margin:6px 0 12px">في المسجد +٥ نقاط، جماعة +٣، متأخرة ٥ بدل ١٠، الفائتة بصفر.</div><div style="display:flex;gap:8px"><button class="btn g" data-sh="clr:" data-sd="${date}" data-sk="${k}" style="flex:1">مسح</button><button class="btn" data-shclose style="flex:1">تم</button></div></div>`;
 }
-document.addEventListener('pointerdown', ev => { const b = ev.target.closest('[data-chk],[data-tchk]'); if (!b) return; const k = b.dataset.chk || b.dataset.tchk; if (/^n/.test(k)) return; clearTimeout(lpT); lpT = setTimeout(() => { lpAt = Date.now(); buzz(40); let date = iso(); if (b.dataset.tchk) { const d = new Date(); d.setDate(d.getDate() + store.get('tday', 0)); date = iso(d); } sheet(date, k); }, 500); });
-['pointerup', 'pointercancel', 'pointermove', 'scroll'].forEach(x => document.addEventListener(x, () => clearTimeout(lpT), { passive: true }));
-document.addEventListener('contextmenu', ev => { if (ev.target.closest('[data-chk],[data-tchk]')) ev.preventDefault(); });
+let lpXY = null;
+function lpStart(b, x, y) { const k = b.dataset.chk || b.dataset.tchk; if (/^n/.test(k)) return; clearTimeout(lpT); lpXY = [x, y]; lpT = setTimeout(() => { lpT = null; lpAt = Date.now(); buzz(40); openFor(b); }, 450); }
+const lpStop = () => { clearTimeout(lpT); lpT = null; };
+document.addEventListener('touchstart', ev => { const b = ev.target.closest('[data-chk],[data-tchk]'); if (!b || !ev.touches[0]) return; lpStart(b, ev.touches[0].clientX, ev.touches[0].clientY); }, { passive: true });
+document.addEventListener('touchmove', ev => { if (lpT && lpXY && ev.touches[0] && Math.hypot(ev.touches[0].clientX - lpXY[0], ev.touches[0].clientY - lpXY[1]) > 14) lpStop(); }, { passive: true });
+document.addEventListener('touchend', ev => { lpStop(); if (Date.now() - lpAt < 900 && ev.target.closest('[data-chk],[data-tchk]') && ev.cancelable) ev.preventDefault(); }, { passive: false });
+document.addEventListener('touchcancel', () => { if (Date.now() - lpAt > 900) lpStop(); }, { passive: true });
+document.addEventListener('mousedown', ev => { if (ev.button !== 0 || ('ontouchstart' in window && ev.sourceCapabilities && ev.sourceCapabilities.firesTouchEvents)) return; const b = ev.target.closest('[data-chk],[data-tchk]'); if (b) lpStart(b, ev.clientX, ev.clientY); });
+document.addEventListener('mouseup', lpStop); document.addEventListener('scroll', lpStop, { passive: true });
+function openFor(b) { const k = b.dataset.chk || b.dataset.tchk; if (/^n/.test(k)) return; let date = iso(); if (b.dataset.tchk) { const d = new Date(); d.setDate(d.getDate() + store.get('tday', 0)); date = iso(d); } store.set('hintLP', 1); sheet(date, k); }
+document.addEventListener('contextmenu', ev => { const b = ev.target.closest('[data-chk],[data-tchk]'); if (!b) return; ev.preventDefault(); lpStop(); if (!$('#sheet') && Date.now() - lpAt > 900) { lpAt = Date.now(); openFor(b); } });
 const trk = () => { const t = store.get('trk', {}); return t && typeof t === 'object' && !Array.isArray(t) ? t : {}; };
 function setTrk(t) { store.set('trk', t); }
 const NAFN = () => NAF.reduce((a, x) => a + x[2], 0);
@@ -163,7 +181,7 @@ V.prayers = () => {
     body: `<div class="hero"><h2>${np.n} خلال</h2><div class="cd" id="cd">${fmtHMS(np.left)}</div><div class="bar"><i id="cdbar" style="width:${pct}%"></i></div>
       <div class="sub">📍 ${place.name}</div><a class="sub qchip" href="#/qibla">🕋 القبلة ${num(Math.round(qiblaB()))}° ${QN[Math.round(qiblaB() / 45) % 8]} · افتح البوصلة ›</a><div class="sub">${day.hijri} · ${new Intl.DateTimeFormat('ar-EG', { day: 'numeric', month: 'long', year: 'numeric' }).format(g)}</div>
       ${fast ? `<span class="pill">🌙 ${fast}</span>` : ''}<span class="pill s">تتبع الصلاة مفعّل ✓</span></div>
-      <div class="card" style="padding:6px 10px">${rows}</div>
+      <div class="card" style="padding:6px 10px">${rows}</div>${store.get('hintLP') ? '' : '<div class="hint">💡 اضغط مطولا على دايرة أي صلاة تختار حالتها: في الوقت، متأخرة، فائتة، جماعة، في المسجد</div>'}
       <div class="card"><h3>الشروق</h3><div class="sub">تنتهي صلاة الفجر عند ${to12(day.t.Sunrise)}</div></div>${thirds()}
       <div class="center"><a class="btn g" href="#/city" style="text-decoration:none;display:inline-block">تغيير المدينة</a></div>`
   };
@@ -283,7 +301,7 @@ V.track = () => {
     head: hdr('تتبع الصلوات', '<span class="ib" style="width:auto;padding:0 14px;font-size:14px;border-radius:999px">المستوى ' + num(lvl) + '</span>'),
     body: `<div class="gems">${GEMS.map((g, i) => `<span class="${i === (lvl - 1) % GEMS.length ? 'on' : ''}">${g}</span>`).join('')}</div>
     <div class="prog" style="margin:0 0 16px"><i style="width:${prog}%"></i></div>
-    <div class="card"><div class="days"><button class="ib" data-tday="-1" aria-label="اليوم السابق">›</button><b>${label}</b><button class="ib" data-tday="1" ${td >= 0 ? 'disabled style="opacity:.3"' : ''} aria-label="اليوم التالي">‹</button></div>
+    ${store.get('hintLP') ? '' : '<div class="hint">💡 اضغط مطولا على دايرة أي صلاة تختار حالتها</div>'}<div class="card"><div class="days"><button class="ib" data-tday="-1" aria-label="اليوم السابق">›</button><b>${label}</b><button class="ib" data-tday="1" ${td >= 0 ? 'disabled style="opacity:.3"' : ''} aria-label="اليوم التالي">‹</button></div>
     <div class="circ">${PR.map(([p, n]) => `<div><button class="chk${chkCls(e, p)}" data-tchk="${p}" style="width:48px;height:48px">${chkIn(e, p)}</button>${n}${chkTag(e, p)}</div>`).join('')}</div></div>
     <div class="card"><h3>النوافل <span class="muted" style="float:left">${num(naf)} / ١٢</span></h3><div class="circ">${NAF.map(([x, n, c]) => `<div><button class="chk${e['n' + x] ? ' on' : ''}" data-tchk="n${x}" style="width:44px;height:44px;font-size:16px">${e['n' + x] ? '✓' : num(c)}</button>${n}</div>`).join('')}</div></div>
     ${calCard(t)}${badgeCard(t, st)}
@@ -410,7 +428,7 @@ document.addEventListener('click', async e => {
   else if (d.city) { const c = CITIES.find(x => x[0] === d.city); place = { id: c[0], name: c[1], lat: c[2], lon: c[3] }; store.set('place', place); refreshTimes(); }
   else if (d.geo !== undefined) {
     const m = $('#geomsg'); m.textContent = 'بحدد موقعك…';
-    navigator.geolocation ? navigator.geolocation.getCurrentPosition(p => { place = { id: 'gps', name: 'موقعي', lat: p.coords.latitude, lon: p.coords.longitude }; store.set('place', place); location.hash = '#/prayers'; refreshTimes(); }, () => m.textContent = 'مقدرتش أحدد موقعك. اختار مدينتك من القايمة.', { timeout: 10000 }) : m.textContent = 'المتصفح مش بيدعم تحديد الموقع';
+    navigator.geolocation ? navigator.geolocation.getCurrentPosition(p => { place = { id: 'gps', name: 'موقعك الحالي', lat: p.coords.latitude, lon: p.coords.longitude }; store.set('place', place); location.hash = '#/prayers'; refreshTimes(); nameGps(); }, () => m.textContent = 'مقدرتش أحدد موقعك. اختار مدينتك من القايمة.', { timeout: 15000, maximumAge: 300000 }) : m.textContent = 'المتصفح مش بيدعم تحديد الموقع';
   }
   else if (d.dh) { const [id, i] = d.dh.split(':'); const c = AD.find(x => x.id === +id); const st = store.get('ad.' + id, { d: iso(), c: {} }); const tot = c.items[i].count || 1; if ((st.c[i] || 0) < tot) { st.c[i] = (st.c[i] || 0) + 1; st.d = iso(); store.set('ad.' + id, st); buzz(10); render(); } }
   else if (d.dreset) { store.set('ad.' + d.dreset, { d: iso(), c: {} }); render(); }
@@ -516,6 +534,7 @@ let deferred = null;
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; const b = $('#inst'); if (b) b.classList.remove('hide'); });
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').then(r => { swReg = r; }).catch(() => {});
 if (!location.hash) location.hash = '#/prayers';
+if (place && place.id === 'gps') { if (place.name === 'موقعي') place.name = 'موقعك الحالي'; nameGps(); }
 render(); refreshTimes();
 
 let errT = 0;
