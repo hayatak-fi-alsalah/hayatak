@@ -51,6 +51,13 @@ async function nameGps() { if (!place || place.id !== 'gps') return; const nm = 
 let place = store.get('place', { id: 'cairo', name: 'القاهرة', lat: 30.0444, lon: 31.2357 });
 let day = null, tomorrow = null, ready = false;
 const to12 = t => { const [h, m] = t.split(' ')[0].split(':').map(Number); return num(h % 12 || 12) + ':' + num(String(m).padStart(2, '0')) + ' ' + (h >= 12 ? 'م' : 'ص'); };
+
+const IQG = { Fajr: 20, Dhuhr: 15, Asr: 15, Maghrib: 10, Isha: 15 };
+const iqGap = k => { const o = store.get('iqg', {}); return Number.isFinite(+o[k]) && o[k] !== undefined ? +o[k] : IQG[k]; };
+const hm12 = s => { s = ((s % 86400) + 86400) % 86400; const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60; return to12(h + ':' + m); };
+const REMD = { m: { on: true, t: '06:00' }, e: { on: true, t: '18:00' }, q: { on: false, t: '02:00' } };
+const getRem = () => { const r = store.get('rem', {}); return { m: Object.assign({}, REMD.m, r.m), e: Object.assign({}, REMD.e, r.e), q: Object.assign({}, REMD.q, r.q) }; };
+function qiyamWins() { if (!day) return null; const m = secs(day.t.Maghrib), f = secs((tomorrow || day).t.Fajr) + 86400, n = f - m; return [['الثلث الأول', m + n / 3], ['منتصف الليل', m + n / 2], ['الثلث الأخير', m + n * 2 / 3]]; }
 const secs = t => { const [h, m] = t.split(' ')[0].split(':').map(Number); return h * 3600 + m * 60; };
 const nowSecs = tz => { try { const p = new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).formatToParts(new Date()); const g = t => (+p.find(x => x.type === t).value) % 24; return g('hour') * 3600 + g('minute') * 60 + g('second'); } catch (e) { const d = new Date(); return d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds(); } };
 const fmtHMS = s => num(Math.floor(s / 3600)) + ':' + num(String(Math.floor(s / 60) % 60).padStart(2, '0')) + ':' + num(String(s % 60).padStart(2, '0'));
@@ -124,8 +131,8 @@ function dayTier(e) { e = e || {}; if (!PR.every(([k]) => e[k])) return 0; const
 const TIERS = [null, ['🥉', 'برونزي', 20], ['🥈', 'فضي', 50], ['🥇', 'ذهبي', 100]];
 const prayPts = (e, k) => !e[k] ? 0 : (e[k] === 'late' ? 5 : 10) + (e[k + 'm'] === 'm' ? 5 : e[k + 'm'] === 'c' ? 3 : 0);
 const chkIn = (e, k) => e[k + 'x'] ? '✕' : e[k] === 'late' ? '⏱' : e[k] ? '✓' : '';
-const chkCls = (e, k) => e[k + 'x'] ? ' miss' : e[k] === 'late' ? ' on late' : e[k] ? ' on' : '';
-const chkTag = (e, k) => { const a = []; if (e[k + 'x']) a.push('فائتة'); else if (e[k] === 'late') a.push('متأخرة'); const m = { a: 'فردي', c: 'جماعة', m: 'مسجد' }[e[k + 'm']]; if (m && e[k]) a.push(m); return a.length ? `<div class="tag">${a.join(' · ')}</div>` : ''; };
+const chkCls = (e, k) => e[k + 'x'] ? ' miss' : e[k] === 'late' ? ' on late' : e[k] ? ' on ' + (e[k + 'm'] || 'a') : '';
+const chkTag = (e, k) => { const a = []; if (e[k + 'x']) a.push('<b class="tx">فائتة</b>'); else if (e[k] === 'late') a.push('<b class="tl">متأخرة</b>'); const mk = e[k + 'm'], m = { a: 'فردي', c: 'جماعة', m: 'مسجد' }[mk]; if (m && e[k]) a.push('<b class="t' + mk + '">' + m + '</b>'); return a.length ? `<div class="tag">${a.join(' · ')}</div>` : ''; };
 function dayXp(e) { let x = 0; PR.forEach(([k]) => { x += prayPts(e, k); }); NAF.forEach(([k]) => { if (e['n' + k]) x += 3; }); if (e.w) x += 10; const t = dayTier(e); if (t) x += TIERS[t][2]; return x; }
 function xpOf(t) { let x = 0; for (const d in t) x += dayXp(t[d]); return x; }
 function streaks(t) {
@@ -176,7 +183,7 @@ V.prayers = () => {
   const pct = Math.max(0, Math.min(100, 100 - (np.left / np.span) * 100));
   const g = new Date();
   const fast = (day.hd >= 13 && day.hd <= 15) ? 'الأيام البيض، صيام مستحب' : (g.getDay() === 1 || g.getDay() === 4) ? (g.getDay() === 1 ? 'صيام الاثنين' : 'صيام الخميس') : '';
-  const rows = PR.map(([k, n]) => `<div class="prow${np.k === k ? ' now' : ''}"><button class="chk${chkCls(t, k)}" data-chk="${k}" aria-label="صليت ${n}">${chkIn(t, k)}</button><div class="n">${n}${chkTag(t, k)}</div><div class="t">${to12(day.t[k])}</div><button class="snd${snd[k] === false ? ' off' : ''}" data-snd="${k}" aria-label="صوت الأذان">🔊</button></div>`).join('');
+  const rows = PR.map(([k, n]) => `<div class="prow${np.k === k ? ' now' : ''}"><button class="chk${chkCls(t, k)}" data-chk="${k}" aria-label="صليت ${n}">${chkIn(t, k)}</button><div class="n">${n}${chkTag(t, k)}<div class="iq">الإقامة ${hm12(secs(day.t[k]) + iqGap(k) * 60)}</div></div><div class="t">${to12(day.t[k])}</div><button class="snd${snd[k] === false ? ' off' : ''}" data-snd="${k}" aria-label="صوت الأذان">🔊</button></div>`).join('');
   return {
     head: hdr('', ico('#/settings', '⚙️', 'الإعدادات') + ico('#/tasbih', '📿', 'تسبيح') + ico('#/qibla', '🧭', 'القبلة')),
     body: `<div class="hero"><h2>${np.n} خلال</h2><div class="cd" id="cd">${fmtHMS(np.left)}</div><div class="bar"><i id="cdbar" style="width:${pct}%"></i></div>
@@ -219,7 +226,7 @@ V.cat = async id => {
   return {
     head: hdr(c.title, '', true),
     body: `<div class="card sub">${num(done)} من ${num(c.items.length)} خلصتهم اليوم. دوس على الذكر كل مرة تقوله.</div>` +
-      (c.audio ? `<div class="card plyr"><button class="btn${curAud === 'c:' + c.id ? '' : ' g'}" data-aud="c:${c.id}" data-af="${c.audio}">${curAud === 'c:' + c.id ? '⏸ إيقاف' : '▶ استمع للقسم كامل'}</button><button class="chip" data-arate>${adRate}x</button></div>` : '') +
+      (c.audio ? `<div class="card plyr"><button class="btn${curAud === 'c:' + c.id ? '' : ' g'}" data-aud="c:${c.id}" data-af="${c.audio}">${curAud === 'c:' + c.id ? '⏸ إيقاف' : '▶ استمع للقسم كامل'}</button><button class="chip" data-arate>${adRate}x</button><button class="chip" data-dla="${c.audio}">⬇ حمّل بدون إنترنت</button></div>` : '') +
       c.items.map((x, i) => { const n = st.c[i] || 0, tot = x.count || 1, fin = n >= tot; return `<div class="dh${fin ? ' done' : ''}" data-dh="${c.id}:${i}">${x.a ? `<button class="aud${curAud === 'i:' + c.id + ':' + i ? ' on' : ''}" data-aud="i:${c.id}:${i}" data-af="${x.a}" aria-label="استمع">${curAud === 'i:' + c.id + ':' + i ? '⏸' : '▶'}</button>` : ''}<div class="t">${x.text}</div><div class="c"><span>${fin ? 'تم ✓' : num(n) + ' / ' + num(tot)}</span><span>${tot > 1 ? 'التكرار ' + num(tot) : ''}</span></div><div class="bar"><i style="width:${Math.min(100, n / tot * 100)}%"></i></div></div>`; }).join('') +
       `<div class="center"><button class="btn g" data-dreset="${c.id}">ابدأ من الأول</button></div>`
   };
@@ -322,12 +329,13 @@ V.alarms = () => {
   const perm = ('Notification' in window) ? Notification.permission : 'unsupported';
   return {
     head: hdr('المنبهات', ico('#/settings', '⚙️', 'الإعدادات')),
-    body: `<div class="card"><h3>التنبيهات</h3>${sw('pre', 'تنبيه قبل الصلاة', 'قبل كل صلاة بـ ' + num(a.preMin) + ' دقيقة')}${sw('at', 'تنبيه وقت الأذان')}${sw('iqama', 'تنبيه الإقامة', 'بعد الأذان بـ ' + num(a.iqMin) + ' دقيقة')}${sw('audio', 'تشغيل صوت الأذان داخل التطبيق')}${sw('wirdr', 'تذكير الورد اليومي', 'لو ما خلصتش ورد النهاردة، تنبيه الساعة ٨ مساء')}${sw('kahf', 'تذكير الجمعة', 'سورة الكهف والإكثار من الصلاة على النبي ﷺ، الجمعة الساعة ٩ صباحا')}</div>
+    body: `<div class="card"><h3>التنبيهات</h3>${sw('pre', 'تنبيه قبل الصلاة', 'قبل كل صلاة بـ ' + num(a.preMin) + ' دقيقة')}${sw('at', 'تنبيه وقت الأذان')}${sw('iqama', 'تنبيه الإقامة', 'بحسب كل صلاة (شوفها تحت)')}${sw('audio', 'تشغيل صوت الأذان داخل التطبيق')}${sw('wirdr', 'تذكير الورد اليومي', 'لو ما خلصتش ورد النهاردة، تنبيه الساعة ٨ مساء')}${sw('kahf', 'تذكير الجمعة', 'سورة الكهف والإكثار من الصلاة على النبي ﷺ، الجمعة الساعة ٩ صباحا')}</div>
     <div class="card"><h3>دقايق التنبيه قبل الصلاة</h3><div class="chips">${[5, 10, 15, 20, 30].map(n => `<button class="chip${a.preMin === n ? ' on' : ''}" data-premin="${n}">${num(n)}</button>`).join('')}</div>
-    <h3>دقايق الإقامة بعد الأذان</h3><div class="chips">${[5, 10, 15, 20, 25].map(n => `<button class="chip${a.iqMin === n ? ' on' : ''}" data-iqmin="${n}">${num(n)}</button>`).join('')}</div></div>
+    <h3>الإقامة بعد الأذان (بالدقايق)</h3>${PR.map(([k, n]) => `<div class="prm"><span>${n}</span><span><button class="chip" data-iqd="${k}:-5">−</button> <b>${num(iqGap(k))}</b> <button class="chip" data-iqd="${k}:5">+</button></span></div>`).join('')}</div>
+    <div class="card"><h3>تذكيرات الأذكار وقيام الليل</h3><div class="muted" style="margin-bottom:8px">اختار الوقت اللي يناسبك. بتشتغل والتطبيق مقفول في نسخة الأندرويد.</div>${[['m', 'أذكار الصباح'], ['e', 'أذكار المساء'], ['q', 'قيام الليل']].map(([k, n]) => { const r = getRem()[k]; return `<div class="prm"><span>${n}</span><span><input type="time" data-rt="${k}" value="${r.t}" style="background:var(--card2);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:6px"> <label class="sw"><input type="checkbox" data-rc="${k}"${r.on ? ' checked' : ''}></label></span></div>`; }).join('')}<div class="muted" style="margin:10px 0 6px">أوقات مقترحة للقيام (من مواقيت اليوم):</div><div class="chips">${(qiyamWins() || []).map(([n, s2]) => `<button class="chip" data-qset="${Math.floor(s2 / 60) % 1440}">${n} ${hm12(s2)}</button>`).join('')}</div></div>
     <a class="tile wide" style="margin-bottom:14px" href="#/ramadan"><span class="e">🌙</span>رمضان والسحور</a>
     <div class="card"><h3>إذن الإشعارات</h3><div class="sub">الحالة: ${perm === 'granted' ? 'مفعّل ✓' : perm === 'denied' ? 'مرفوض من إعدادات المتصفح' : perm === 'unsupported' ? 'غير مدعوم' : 'لم يُفعّل بعد'}</div>
-    <div class="muted" style="margin:14px 0 6px">صوت الأذان</div><div class="slist">${SOUNDS.map(([k, n, o]) => `<div class="srow${(a.sound || 'aaqib') === k ? ' sel' : ''}"><button class="aud" data-sprev="${k}" aria-label="سماع">▶</button><div data-asound="${k}" style="flex:1"><b>${n}</b><div class="muted">${o}</div></div><span class="ck">${(a.sound || 'aaqib') === k ? '✓' : ''}</span></div>`).join('')}</div><button class="btn" data-perm style="margin-top:10px">تفعيل الإشعارات</button><button class="btn g" data-testalarm style="margin-top:10px">جرب تنبيه الآن</button>
+    <div class="muted" style="margin:14px 0 6px">صوت الأذان</div><div class="slist">${SOUNDS.map(([k, n, o]) => `<div class="srow${(a.sound || 'aaqib') === k ? ' sel' : ''}"><button class="aud" data-sprev="${k}" aria-label="سماع">▶</button><div data-asound="${k}" style="flex:1"><b>${n}</b><div class="muted">${o}</div></div>${k.startsWith('r:') ? (voiceHas[k] ? '<span class="muted">محمّل ✓</span>' : `<button class="chip" data-dlv="${k}">⬇ تحميل</button>`) : ''}<span class="ck">${(a.sound || 'aaqib') === k ? '✓' : ''}</span></div>`).join('')}</div><button class="btn" data-perm style="margin-top:10px">تفعيل الإشعارات</button><button class="btn g" data-testalarm style="margin-top:10px">جرب تنبيه الآن</button>
     <div class="muted" style="margin-top:12px">ملاحظة صادقة: التنبيهات في نسخة الويب بتشتغل لما التطبيق يكون مفتوح أو شغال في الخلفية. للتنبيه المضمون والأذان بصوت المشاري والتطبيق مقفول، هنعمل نسخة أندرويد (APK) في الخطوة الجاية.</div></div>`
   };
 };
@@ -425,7 +433,7 @@ window.addEventListener('hashchange', () => { const hh = (location.hash || '#/pr
 
 /* ---------- events ---------- */
 document.addEventListener('click', async e => {
-  const t = e.target.closest('[data-chk],[data-snd],[data-city],[data-geo],[data-dh],[data-dreset],[data-qtab],[data-mark],[data-qs],[data-wdone],[data-ppd],[data-tday],[data-tchk],[data-alarm],[data-premin],[data-iqmin],[data-aud],[data-nat],[data-qa],[data-arate],[data-off],[data-school],[data-sprev],[data-asound],[data-aprev],[data-loc],[data-retry],[data-sh],[data-shclose],[data-testalarm],[data-tasnav],[data-tast],[data-tasreset],[data-compass],[data-share],[data-install],[data-suhoor],[data-suhmin],[data-method]');
+  const t = e.target.closest('[data-chk],[data-snd],[data-city],[data-geo],[data-dh],[data-dreset],[data-qtab],[data-mark],[data-qs],[data-wdone],[data-ppd],[data-tday],[data-tchk],[data-alarm],[data-premin],[data-iqmin],[data-iqd],[data-qset],[data-dlv],[data-dla],[data-aud],[data-nat],[data-qa],[data-arate],[data-off],[data-school],[data-sprev],[data-asound],[data-aprev],[data-loc],[data-retry],[data-sh],[data-shclose],[data-testalarm],[data-tasnav],[data-tast],[data-tasreset],[data-compass],[data-share],[data-install],[data-suhoor],[data-suhmin],[data-method]');
   if (Date.now() - lpAt < 700 && e.target.closest('[data-chk],[data-tchk]')) { return; }
   if (!t) return; const d = t.dataset;
   if (d.retry !== undefined) { if (/^#\/prayers/.test(location.hash) || !location.hash) refreshTimes(); else render(); return; }
@@ -449,6 +457,10 @@ document.addEventListener('click', async e => {
   else if (d.tchk) { const a = trk(), dt = new Date(); dt.setDate(dt.getDate() + store.get('tday', 0)); const k = iso(dt); a[k] = a[k] || {}; if (/^n/.test(d.tchk)) a[k][d.tchk] = !a[k][d.tchk]; else togP(a[k], d.tchk); setTrk(a); buzz(); render(); }
   else if (d.alarm) { const a = store.get('alarm', { pre: true, preMin: 15, at: true, iqama: true, iqMin: 10, audio: true, kahf: true }); a[d.alarm] = t.checked; store.set('alarm', a); }
   else if (d.premin) { const a = store.get('alarm', {}); a.preMin = +d.premin; store.set('alarm', a); render(); }
+  else if (d.iqd) { const [k, dv] = d.iqd.split(':'), o = store.get('iqg', {}); o[k] = Math.max(0, Math.min(60, iqGap(k) + +dv)); store.set('iqg', o); render(); }
+  else if (d.qset) { const r = getRem(); const m = +d.qset; r.q.t = String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); r.q.on = true; store.set('rem', r); render(); }
+  else if (d.dlv) { dlVoice(d.dlv); }
+  else if (d.dla) { dlAudio(d.dla); }
   else if (d.iqmin) { const a = store.get('alarm', {}); a.iqMin = +d.iqmin; store.set('alarm', a); render(); }
   else if (d.loc !== undefined) { navigator.geolocation ? navigator.geolocation.getCurrentPosition(() => { toast('تم السماح بالموقع ✓'); render(); }, () => toast('الموقع مرفوض. فعّله من إعدادات المتصفح.'), { timeout: 10000 }) : toast('الجهاز مش بيدعم الموقع'); }
   else if (d.aud) { playAud(d.aud, d.af); }
@@ -529,10 +541,10 @@ async function notify(title, body) {
 const ADB = 'https://cdn.jsdelivr.net/gh/rn0x/Adhkar-json@main/audio/';
 let adA = null, curAud = null, adRate = 1;
 function stopAud() { try { if (adA) { adA.pause(); adA = null; } } catch (e) {} curAud = null; }
-function playAud(key, file) {
+async function playAud(key, file) {
   if (curAud === key && adA) { stopAud(); render(); return; }
   stopAud(); stopAdhan(); curAud = key;
-  try { adA = new Audio(ADB + file); adA.playbackRate = adRate; adA.onended = () => { curAud = null; adA = null; render(); }; adA.onerror = () => { curAud = null; adA = null; toast('الصوت محتاج إنترنت'); render(); }; adA.play().catch(() => { curAud = null; render(); }); } catch (e) { curAud = null; }
+  try { adA = new Audio(await cachedUrl(ADB + file, 'hq-adhkar')); adA.playbackRate = adRate; adA.onended = () => { curAud = null; adA = null; render(); }; adA.onerror = () => { curAud = null; adA = null; toast('الصوت محتاج إنترنت'); render(); }; adA.play().catch(() => { curAud = null; render(); }); } catch (e) { curAud = null; }
   render();
 }
 function playQA(r) {
@@ -545,10 +557,17 @@ const SOUNDS = [['aaqib', 'أذان هادي', 'بصوت عاقب عزيز'], ['
 const ARC = 'https://archive.org/download/adhan.notifications/';
 const adUrl = k => k.startsWith('r:') ? ARC + k.slice(2) + '.mp3' : 'audio/adhan-' + k + '.mp3';
 let prevA = null;
+async function cacheFetch(url, cname) { const c = await caches.open(cname); let r = await c.match(url); if (!r) { const f = await fetch(url); if (!f.ok) throw new Error('bad'); await c.put(url, f.clone()); r = f; } return r; }
+async function cachedUrl(url, cname) { try { const c = await caches.open(cname); const r = await c.match(url); if (r) return URL.createObjectURL(await r.blob()); } catch (e) {} return url; }
+async function hasCached(url, cname) { try { return !!(await (await caches.open(cname)).match(url)); } catch (e) { return false; } }
+async function dlVoice(k) { toast('بنحمّل الصوت…'); try { await cacheFetch(adUrl(k), 'hq-voices'); toast('اتحمّل، هيشتغل من غير إنترنت ✓'); } catch (e) { toast('التحميل فشل، جرب تاني'); } voiceHas[k] = await hasCached(adUrl(k), 'hq-voices'); render(); }
+async function dlAudio(f) { toast('بنحمّل الصوت…'); try { await cacheFetch(ADB + f, 'hq-adhkar'); toast('اتحمّل ✓'); } catch (e) { toast('التحميل فشل، جرب تاني'); } render(); }
+let voiceHas = {}; (async () => { for (const r of SOUNDS) if (r[0].startsWith('r:')) voiceHas[r[0]] = await hasCached(adUrl(r[0]), 'hq-voices'); })();
+
 function stopAdhan() { try { if (audio) { audio.pause(); audio.currentTime = 0; } if (prevA) { prevA.pause(); prevA = null; } } catch (e) {} }
-function playSound(id) { stopAdhan(); try { const a = new Audio(adUrl(id)); prevA = a; a.onerror = () => toast('الصوت مش متاح دلوقتي'); a.play().catch(() => toast('اضغط تاني لتشغيل الصوت')); } catch (e) {} }
+async function playSound(id) { stopAdhan(); try { const a = new Audio(id.startsWith('r:') ? await cachedUrl(adUrl(id), 'hq-voices') : adUrl(id)); prevA = a; a.onerror = () => toast('الصوت مش متاح دلوقتي'); a.play().catch(() => toast('اضغط تاني لتشغيل الصوت')); } catch (e) {} }
 function playMasa() { try { const a = new Audio('audio/masaharati.mp3'); a.play().catch(() => {}); } catch (e) {} }
-function playAdhan() { const a = store.get('alarm', { audio: true }); if (!a.audio) return; try { stopAdhan(); audio = new Audio(adUrl(a.sound || 'aaqib')); audio.play().catch(() => {}); } catch (e) {} }
+function playAdhan() { const a = store.get('alarm', { audio: true }); if (!a.audio) return; try { stopAdhan(); audio = new Audio(adUrl(a.sound || 'aaqib')); { const sk = a.sound || 'aaqib'; if (sk.startsWith('r:') && voiceHas[sk]) cachedUrl(adUrl(sk), 'hq-voices').then(u => { audio.src = u; audio.play().catch(() => {}); }); } audio.play().catch(() => {}); } catch (e) {} }
 function checkAlarms() {
   const g = new Date(), kid = 'kahf' + iso(g);
   if (g.getDay() === 5 && g.getHours() === 9 && g.getMinutes() < 2 && !fired[kid] && store.get('alarm', { kahf: true }).kahf !== false) { fired[kid] = 1; notify('يوم الجمعة', 'لا تنسَ قراءة سورة الكهف والإكثار من الصلاة على النبي ﷺ'); }
@@ -561,7 +580,7 @@ function checkAlarms() {
   if (!day) return; const a = store.get('alarm', { pre: true, preMin: 15, at: true, iqama: true, iqMin: 10 }), snd = store.get('snd', {}), now = nowSecs(day.tz);
   PR.forEach(([k, n]) => {
     if (snd[k] === false) return; const t = secs(day.t[k]);
-    const ev = [['pre', t - a.preMin * 60, `بعد ${num(a.preMin)} دقيقة صلاة ${n}`, false], ['at', t, `حان الآن موعد أذان ${n}`, true], ['iqama', t + a.iqMin * 60, `إقامة صلاة ${n}`, false]];
+    const ev = [['pre', t - a.preMin * 60, `بعد ${num(a.preMin)} دقيقة صلاة ${n}`, false], ['at', t, `حان الآن موعد أذان ${n}`, true], ['iqama', t + iqGap(k) * 60, `إقامة صلاة ${n}`, false]];
     ev.forEach(([w, s, msg, snd2]) => { const id = iso() + k + w; if (a[w] && now >= s && now < s + 45 && !fired[id]) { fired[id] = 1; notify('حياتك في الصلاة', msg); if (snd2) playAdhan(); } });
   });
 }
@@ -626,12 +645,14 @@ let nativeSig = '', nativeBusy = false;
 async function nativeSync() {
   const ln = LN(); if (!NATIVE || !ln || nativeBusy || !day || !ready) return;
   const a = store.get('alarm', { pre: true, preMin: 15, at: true, iqama: true, iqMin: 10, audio: true, kahf: true }), snd = store.get('snd', {});
-  const sig = JSON.stringify([a, snd, store.get('offs', {}), store.get('method', 0), store.get('school', 0), place.lat, place.lon, iso()]);
+  const sig = JSON.stringify([getRem(), store.get('iqg', {}), a, snd, store.get('offs', {}), store.get('method', 0), store.get('school', 0), place.lat, place.lon, iso()]);
   if (sig === nativeSig) return; nativeBusy = true;
   try {
     const perm = await ln.checkPermissions(); if (!perm || perm.display !== 'granted') { store.set('nativeErr', 'إذن الإشعارات مش مفعّل'); nativeBusy = false; return; }
     const voice = NVOICES.includes(a.sound) ? a.sound : 'aaqib';
     for (const v of NVOICES) { try { await ln.createChannel({ id: 'adhan_' + v, name: 'الأذان', description: 'تنبيه وقت الأذان', importance: 5, sound: 'adhan_' + v + '.mp3', vibration: true, visibility: 1 }); } catch (e) {} }
+    try { await ln.createChannel({ id: 'iqama_soft', name: 'الإقامة', description: 'نغمة خفيفة وقت الإقامة', importance: 4, sound: 'iqama_soft.wav', vibration: false, visibility: 1 }); } catch (e) {}
+    try { await ln.createChannel({ id: 'pre_soft', name: 'قبل الصلاة', description: 'تنبيه قبل الصلاة', importance: 4, sound: 'pre_soft.wav', vibration: true, visibility: 1 }); } catch (e) {}
     try { await ln.createChannel({ id: 'reminder', name: 'التذكيرات', description: 'قبل الصلاة والإقامة والأذكار', importance: 4, vibration: true, visibility: 1 }); } catch (e) {}
     try { await ln.createChannel({ id: 'adhan_quiet', name: 'الأذان بدون صوت طويل', importance: 4, vibration: true }); } catch (e) {}
     const days = []; for (let i = 0; i < 7; i++) { try { days.push([new Date(Date.now() + i * 864e5), await loadDay(new Date(Date.now() + i * 864e5))]); } catch (e) { if (i < 2) { nativeBusy = false; return; } break; } }
@@ -640,9 +661,10 @@ async function nativeSync() {
       PR.forEach(([k, name], pi) => {
         if (snd[k] === false) return; const m = String(dd.t[k]).match(/(\d+):(\d+)/); if (!m) return; const t = zonedEpoch(dt, +m[1], +m[2], dd.tz);
         const base = (di * 10 + pi) * 10;
-        const ev = [['pre', t - a.preMin * 60000, 'بعد ' + num(a.preMin) + ' دقيقة صلاة ' + name, 'reminder', 1], ['at', t, 'حان الآن موعد أذان ' + name, a.audio === false ? 'adhan_quiet' : 'adhan_' + voice, 2], ['iqama', t + a.iqMin * 60000, 'إقامة صلاة ' + name, 'reminder', 3]];
+        const ev = [['pre', t - a.preMin * 60000, 'بعد ' + num(a.preMin) + ' دقيقة صلاة ' + name, 'pre_soft', 1], ['at', t, 'حان الآن موعد أذان ' + name, a.audio === false ? 'adhan_quiet' : 'adhan_' + voice, 2], ['iqama', t + iqGap(k) * 60000, 'إقامة صلاة ' + name, 'iqama_soft', 3]];
         ev.forEach(([w, at, body, ch, off]) => { if (a[w] && at > now + 5000) out.push({ id: 100 + base + off, title: 'حياتك في الصلاة', body, channelId: ch, schedule: { at: new Date(at), allowWhileIdle: true }, smallIcon: 'ic_stat_hayatak' }); });
       });
+      { const rm = getRem(); [['m', 'أذكار الصباح', 'وقت أذكار الصباح، حصّن يومك 🌅'], ['e', 'أذكار المساء', 'وقت أذكار المساء 🌙'], ['q', 'قيام الليل', 'قم ولو بركعتين، الله ينادي عباده في الثلث الأخير']].forEach(([key, title, body], x) => { const r = rm[key]; if (!r.on) return; const [hh, mm] = r.t.split(':').map(Number); const at = zonedEpoch(dt, hh, mm, dd.tz); if (at > now + 5000) out.push({ id: 91000 + di * 10 + x, title, body, channelId: 'reminder', schedule: { at: new Date(at), allowWhileIdle: true }, smallIcon: 'ic_stat_hayatak' }); }); }
       if (dt.getDay() === 5 && a.kahf !== false) { const at = zonedEpoch(dt, 9, 0, dd.tz); if (at > now) out.push({ id: 90000 + di, title: 'يوم الجمعة', body: 'لا تنسَ قراءة سورة الكهف والإكثار من الصلاة على النبي ﷺ', channelId: 'reminder', schedule: { at: new Date(at), allowWhileIdle: true } }); }
     });
     const pend = await ln.getPending(); if (pend && pend.notifications && pend.notifications.length) await ln.cancel({ notifications: pend.notifications.map(x => ({ id: x.id })) });
@@ -667,3 +689,9 @@ async function nativeTest() {
     toast('اتجدول بعد ١٠ ثواني (المنبهات الدقيقة: ' + ex + ')، اقفل التطبيق');
   } catch (e) { toast('فشل: ' + String(e && (e.message || e)).slice(0, 80)); store.set('nativeErr', 'test:' + String(e && (e.message || e)).slice(0, 100)); }
 }
+
+document.addEventListener('change', e => {
+  const t = e.target; if (!t || !t.dataset) return;
+  if (t.dataset.rt) { const r = getRem(); r[t.dataset.rt].t = t.value || r[t.dataset.rt].t; store.set('rem', r); toast('اتحفظ ✓'); }
+  else if (t.dataset.rc) { const r = getRem(); r[t.dataset.rc].on = t.checked; store.set('rem', r); }
+});

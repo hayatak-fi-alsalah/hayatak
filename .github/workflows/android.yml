@@ -39,6 +39,7 @@ jobs:
           g=Image.open(root+'icon-192.png').convert('RGBA').resize((96,96),Image.LANCZOS)
           w=Image.new('RGBA',g.size,(255,255,255,0)); w.putalpha(g.getchannel('A')); wh=Image.new('RGBA',g.size,(255,255,255,255)); wh.putalpha(g.getchannel('A')); wh.save('res/drawable/ic_stat_hayatak.png')
           PY
+          cp ../../../../native/iqama_soft.wav ../../../../native/pre_soft.wav res/raw/
           JD=java/com/hayatak/salah; mkdir -p $JD; cp ../../../../native/SettingsOpener.java ../../../../native/MainActivity.java $JD/
           M=AndroidManifest.xml
           for p in POST_NOTIFICATIONS SCHEDULE_EXACT_ALARM RECEIVE_BOOT_COMPLETED REQUEST_IGNORE_BATTERY_OPTIMIZATIONS VIBRATE WAKE_LOCK; do

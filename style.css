@@ -147,3 +147,12 @@ button:active,.dh:active,.chip:active{transform:scale(.97)}
 
 #view{animation:vin .12s ease-out}@keyframes vin{from{opacity:.4}to{opacity:1}}
 nav#nav{transform:translateZ(0);box-shadow:0 2px 10px #0006}
+
+/* status colours */
+.chk.on.a{background:#5fd39a;border-color:#5fd39a}
+.chk.on.c{background:#4aa8ff;border-color:#4aa8ff}
+.chk.on.m{background:#e8c26a;border-color:#e8c26a}
+.chk.on.late{background:#f0902f;border-color:#f0902f}
+.chk.miss{border-color:#e5646b;color:#e5646b;background:rgba(229,100,107,.12)}
+.tag b{font-weight:600}.tag .ta{color:#5fd39a}.tag .tc{color:#4aa8ff}.tag .tm{color:#e8c26a}.tag .tl{color:#f0902f}.tag .tx{color:#e5646b}
+.iq{font-size:12px;color:var(--ink2);font-weight:400;margin-top:2px}
