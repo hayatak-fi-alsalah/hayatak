@@ -276,10 +276,11 @@ V.cat = async id => {
   await loadAd(); const c = AD.find(x => x.id === +id); if (!c) return { head: hdr('الأذكار', '', true), body: '<div class="card center sub">القسم ده مش موجود. <a href="#/adhkar">ارجع للأذكار</a></div>' };
   const st = store.get('ad.' + c.id, { d: iso(), c: {} }); if (st.d !== iso()) { st.d = iso(); st.c = {}; store.set('ad.' + c.id, st); }
   const done = c.items.filter((x, i) => (st.c[i] || 0) >= (x.count || 1)).length;
+  const dlOK = c.audio ? await hasCached(ADB + c.audio, 'hq-adhkar') : false;
   return {
     head: hdr(c.title, '', true),
     body: `<div class="card sub">${num(done)} من ${num(c.items.length)} خلصتهم اليوم. دوس على الذكر كل مرة تقوله.</div>` +
-      (c.audio ? `<div class="card plyr"><button class="btn${curAud === 'c:' + c.id ? '' : ' g'}" data-aud="c:${c.id}" data-af="${c.audio}">${curAud === 'c:' + c.id ? '⏸ إيقاف' : '▶ استمع للقسم كامل'}</button><button class="chip" data-arate>${adRate}x</button><button class="chip" data-dla="${c.audio}">⬇ حمّل بدون إنترنت</button></div>` : '') +
+      (c.audio ? `<div class="card plyr"><button class="pb${curAud === 'c:' + c.id ? ' on' : ''}" data-aud="c:${c.id}" data-af="${c.audio}">${curAud === 'c:' + c.id ? IC.pause : IC.play}<span>${curAud === 'c:' + c.id ? 'إيقاف' : 'تشغيل الكل'}</span></button><button class="pb" data-arate><b>${num(adRate)}x</b><span>السرعة</span></button><button class="pb${dlOK ? ' ok' : ''}" data-dla="${c.audio}">${IC.dl}<span>${dlOK ? 'محمّل ✓' : 'تنزيل'}</span></button></div>` : '') +
       c.items.map((x, i) => { const n = st.c[i] || 0, tot = x.count || 1, fin = n >= tot; return `<div class="dh${fin ? ' done' : ''}" data-dh="${c.id}:${i}">${x.a ? `<button class="aud${curAud === 'i:' + c.id + ':' + i ? ' on' : ''}" data-aud="i:${c.id}:${i}" data-af="${x.a}" aria-label="استمع">${curAud === 'i:' + c.id + ':' + i ? '⏸' : '▶'}</button>` : ''}<div class="t">${x.text}</div><div class="c"><span>${fin ? 'تم ✓' : num(n) + ' / ' + num(tot)}</span><span>${tot > 1 ? 'التكرار ' + num(tot) : ''}</span></div><div class="bar"><i style="width:${Math.min(100, n / tot * 100)}%"></i></div></div>`; }).join('') +
       `<div class="center"><button class="btn g" data-dreset="${c.id}">ابدأ من الأول</button></div>`
   };
