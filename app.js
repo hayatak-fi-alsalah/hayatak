@@ -266,7 +266,7 @@ function calCard(t) {
     const e = t[iso(new Date(y, m, d))] || {}, c = PR.filter(([k]) => e[k]).length, fut = d > n.getDate();
     cells += `<div style="opacity:${fut ? .35 : 1};display:grid;place-items:center"><span style="width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-size:14px;background:${c ? `conic-gradient(${c === 5 ? 'var(--ok)' : 'var(--gold)'} ${c * 72}deg,var(--card2) 0)` : 'var(--card2)'};${d === n.getDate() ? 'outline:2px solid var(--ac2);' : ''}"><span style="width:30px;height:30px;border-radius:50%;background:var(--card);display:grid;place-items:center">${num(d)}</span></span></div>`;
   }
-  return `<div class="card"><h3>${new Intl.DateTimeFormat('ar-EG', { month: 'long', year: 'numeric' }).format(n)}</h3><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;text-align:center"><div class="muted">ح</div><div class="muted">ن</div><div class="muted">ث</div><div class="muted">ر</div><div class="muted">خ</div><div class="muted">ج</div><div class="muted">س</div>${cells}</div></div>`;
+  return `<div class="card"><h3>${new Intl.DateTimeFormat('ar-EG', { month: 'long', year: 'numeric' }).format(n)}</h3><div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;text-align:center"><div class="muted">ح</div><div class="muted">ن</div><div class="muted">ث</div><div class="muted">ر</div><div class="muted">خ</div><div class="muted">ج</div><div class="muted">س</div>${cells}</div></div>`;
 }
 function badgeCard(t, st) {
   let total = 0, fajr = 0, sun = 0; for (const d in t) { PR.forEach(([k]) => { if (t[d][k]) total++; }); if (t[d].Fajr) fajr++; if (t[d].nf2) sun++; }
