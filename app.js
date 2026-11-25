@@ -55,12 +55,13 @@ const secs = t => { const [h, m] = t.split(' ')[0].split(':').map(Number); retur
 const nowSecs = tz => { try { const p = new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).formatToParts(new Date()); const g = t => (+p.find(x => x.type === t).value) % 24; return g('hour') * 3600 + g('minute') * 60 + g('second'); } catch (e) { const d = new Date(); return d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds(); } };
 const fmtHMS = s => num(Math.floor(s / 3600)) + ':' + num(String(Math.floor(s / 60) % 60).padStart(2, '0')) + ':' + num(String(s % 60).padStart(2, '0'));
 function dstr(d) { return String(d.getDate()).padStart(2, '0') + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + d.getFullYear(); }
+const tuneStr = () => { const o = store.get('offs', {}); return `0,${o.Fajr || 0},0,${o.Dhuhr || 0},${o.Asr || 0},${o.Maghrib || 0},0,${o.Isha || 0},0`; };
 async function loadDay(d) {
-  const key = `t2.${store.get('method', 0)}.${place.lat.toFixed(2)}.${place.lon.toFixed(2)}.${dstr(d)}`;
+  const key = `t3.${store.get('method', 0)}.${store.get('school', 0)}.${tuneStr()}.${place.lat.toFixed(2)}.${place.lon.toFixed(2)}.${dstr(d)}`;
   const c = store.get(key);
   if (c) return c;
   const method = methodFor();
-  const j = await fetchJ(`https://api.aladhan.com/v1/timings/${dstr(d)}?latitude=${place.lat}&longitude=${place.lon}&method=${method}`);
+  const j = await fetchJ(`https://api.aladhan.com/v1/timings/${dstr(d)}?latitude=${place.lat}&longitude=${place.lon}&method=${method}&school=${store.get('school', 0)}&tune=${tuneStr()}`);
   if (!j || !j.data || !j.data.timings || !j.data.date) throw new Error('bad data');
   const h = j.data.date.hijri;
   const out = { t: j.data.timings, tz: j.data.meta.timezone, hijri: `${num(h.day)} ${h.month.ar} ${num(h.year)} هـ`, hd: +h.day, hm: +h.month.number, hy: +h.year, wd: h.weekday.ar };
@@ -217,7 +218,8 @@ V.cat = async id => {
   return {
     head: hdr(c.title, '', true),
     body: `<div class="card sub">${num(done)} من ${num(c.items.length)} خلصتهم اليوم. دوس على الذكر كل مرة تقوله.</div>` +
-      c.items.map((x, i) => { const n = st.c[i] || 0, tot = x.count || 1, fin = n >= tot; return `<div class="dh${fin ? ' done' : ''}" data-dh="${c.id}:${i}"><div class="t">${x.text}</div><div class="c"><span>${fin ? 'تم ✓' : num(n) + ' / ' + num(tot)}</span><span>${tot > 1 ? 'التكرار ' + num(tot) : ''}</span></div><div class="bar"><i style="width:${Math.min(100, n / tot * 100)}%"></i></div></div>`; }).join('') +
+      (c.audio ? `<div class="card plyr"><button class="btn${curAud === 'c:' + c.id ? '' : ' g'}" data-aud="c:${c.id}" data-af="${c.audio}">${curAud === 'c:' + c.id ? '⏸ إيقاف' : '▶ استمع للقسم كامل'}</button><button class="chip" data-arate>${adRate}x</button></div>` : '') +
+      c.items.map((x, i) => { const n = st.c[i] || 0, tot = x.count || 1, fin = n >= tot; return `<div class="dh${fin ? ' done' : ''}" data-dh="${c.id}:${i}">${x.a ? `<button class="aud${curAud === 'i:' + c.id + ':' + i ? ' on' : ''}" data-aud="i:${c.id}:${i}" data-af="${x.a}" aria-label="استمع">${curAud === 'i:' + c.id + ':' + i ? '⏸' : '▶'}</button>` : ''}<div class="t">${x.text}</div><div class="c"><span>${fin ? 'تم ✓' : num(n) + ' / ' + num(tot)}</span><span>${tot > 1 ? 'التكرار ' + num(tot) : ''}</span></div><div class="bar"><i style="width:${Math.min(100, n / tot * 100)}%"></i></div></div>`; }).join('') +
       `<div class="center"><button class="btn g" data-dreset="${c.id}">ابدأ من الأول</button></div>`
   };
 };
@@ -324,7 +326,7 @@ V.alarms = () => {
     <h3>دقايق الإقامة بعد الأذان</h3><div class="chips">${[5, 10, 15, 20, 25].map(n => `<button class="chip${a.iqMin === n ? ' on' : ''}" data-iqmin="${n}">${num(n)}</button>`).join('')}</div></div>
     <a class="tile wide" style="margin-bottom:14px" href="#/ramadan"><span class="e">🌙</span>رمضان والسحور</a>
     <div class="card"><h3>إذن الإشعارات</h3><div class="sub">الحالة: ${perm === 'granted' ? 'مفعّل ✓' : perm === 'denied' ? 'مرفوض من إعدادات المتصفح' : perm === 'unsupported' ? 'غير مدعوم' : 'لم يُفعّل بعد'}</div>
-    <div class="muted" style="margin:14px 0 6px">صوت الأذان</div><div class="chips">${SOUNDS.map(([k, n]) => `<button class="chip${(a.sound || 'aaqib') === k ? ' on' : ''}" data-asound="${k}">${n}</button>`).join('')}</div><button class="btn g" data-aprev style="width:100%;margin-top:6px">▶ سماع الصوت المختار</button><button class="btn" data-perm style="margin-top:10px">تفعيل الإشعارات</button><button class="btn g" data-testalarm style="margin-top:10px">جرب تنبيه الآن</button>
+    <div class="muted" style="margin:14px 0 6px">صوت الأذان</div><div class="slist">${SOUNDS.map(([k, n, o]) => `<div class="srow${(a.sound || 'aaqib') === k ? ' sel' : ''}"><button class="aud" data-sprev="${k}" aria-label="سماع">▶</button><div data-asound="${k}" style="flex:1"><b>${n}</b><div class="muted">${o}</div></div><span class="ck">${(a.sound || 'aaqib') === k ? '✓' : ''}</span></div>`).join('')}</div><button class="btn" data-perm style="margin-top:10px">تفعيل الإشعارات</button><button class="btn g" data-testalarm style="margin-top:10px">جرب تنبيه الآن</button>
     <div class="muted" style="margin-top:12px">ملاحظة صادقة: التنبيهات في نسخة الويب بتشتغل لما التطبيق يكون مفتوح أو شغال في الخلفية. للتنبيه المضمون والأذان بصوت المشاري والتطبيق مقفول، هنعمل نسخة أندرويد (APK) في الخطوة الجاية.</div></div>`
   };
 };
@@ -363,14 +365,16 @@ V.qibla = () => {
   const b = ((Math.atan2(Math.sin(dl), Math.cos(place.lat * r) * Math.tan(21.4225 * r) - Math.sin(place.lat * r) * Math.cos(dl)) / r) + 360) % 360;
   const names = ['شمال', 'شمال شرق', 'شرق', 'جنوب شرق', 'جنوب', 'جنوب غرب', 'غرب', 'شمال غرب'];
   window.__qb = b;
-  return { head: hdr('القبلة', '', true), body: `<div class="center"><div class="compass" id="cmp"><div class="ar" id="qar" style="transform:rotate(${b}deg)"><span>🕋</span></div></div><div class="big">${num(Math.round(b))}°</div><div class="sub">${names[Math.round(b / 45) % 8]} من ${place.name}، مقاسة من الشمال مع عقارب الساعة</div><button class="btn" data-compass style="margin-top:12px">شغّل البوصلة</button><div class="muted" id="cmsg" style="margin-top:8px"></div></div>` };
+  return { head: hdr('القبلة', '', true), body: `<div class="center"><div class="compass" id="cmp"><div class="dial" id="qn"><i class="n">ش</i><i class="e">شرق</i><i class="s">ج</i><i class="w">غرب</i></div><div class="ar" id="qar" style="transform:rotate(${b}deg)"><span>🕋</span></div><div class="hub">✦</div></div><div class="big">${num(Math.round(b))}°</div><div class="sub">${names[Math.round(b / 45) % 8]} من ${place.name}، مقاسة من الشمال مع عقارب الساعة</div><div class="muted" style="margin-top:6px">لف الموبايل لحد ما الكعبة تبقى لفوق، والدايرة هتخضر لما تبقى مظبوط.</div><button class="btn" data-compass style="margin-top:12px">شغّل البوصلة</button><div class="muted" id="cmsg" style="margin-top:8px"></div></div>` };
 };
 V.settings = () => ({
   head: hdr('الإعدادات', '', true),
   body: `<div class="card list"><a href="#/city">المدينة<span class="m">${place.name}</span></a><a href="#/alarms">المنبهات<span class="m">›</span></a><a href="#/ramadan">رمضان والسحور<span class="m">›</span></a>
   </div>
   <div class="card"><h3>طريقة حساب المواقيت</h3><div class="chips">${METHODS.map(m => `<button class="chip${store.get('method', 0) === m[0] ? ' on' : ''}" data-method="${m[0]}">${m[1]}</button>`).join('')}</div><div class="muted">الوضع التلقائي بيختار الطريقة المناسبة لبلدك.</div></div>
-  <div class="card"><h3>صلاحيات التطبيق</h3>
+  <div class="card"><h3>ضبط المواقيت</h3><div class="muted">مذهب العصر</div><div class="chips"><button class="chip${store.get('school', 0) === 0 ? ' on' : ''}" data-school="0">الجمهور (شافعي، مالكي، حنبلي)</button><button class="chip${store.get('school', 0) === 1 ? ' on' : ''}" data-school="1">حنفي</button></div>
+   <div class="muted" style="margin-top:8px">تعديل بالدقايق لكل صلاة</div>${PR.filter(p => p[0] !== 'Sunrise').map(([k, n]) => { const o = store.get('offs', {})[k] || 0; return `<div class="prm" style="align-items:center"><span>${n}</span><span class="step"><button class="ib" data-off="${k}:-1">−</button><b style="min-width:44px;text-align:center">${o > 0 ? '+' : ''}${num(o)}</b><button class="ib" data-off="${k}:1">+</button></span></div>`; }).join('')}</div>
+   <div class="card"><h3>صلاحيات التطبيق</h3>
    <div class="muted" style="margin-bottom:8px">التطبيق محتاج الصلاحيات دي عشان يشتغل صح. مفيش بيانات بتتبعت لأي حد، كله بيتخزن على موبايلك.</div>
    <div class="prm"><span>📍 الموقع<br><span class="muted">لحساب مواقيت الصلاة واتجاه القبلة حسب مكانك. تقدر تختار مدينتك بإيدك بدل كده.</span></span><b id="pm-loc">…</b></div>
    <button class="btn g" data-loc style="width:100%;margin:6px 0 12px">السماح بالموقع</button>
@@ -405,6 +409,7 @@ async function render() {
   } catch (e) { v = { head: hdr('حياتك في الصلاة', '', true), body: '<div class="card center"><div class="sub">تعذر التحميل. تأكد من الاتصال وجرب تاني.</div><button class="btn" data-retry style="margin-top:12px">إعادة المحاولة</button></div>' }; }
   if (myr !== rtk) return;
   if (!v || typeof v.body !== 'string') v = { head: hdr('حياتك في الصلاة'), body: '' };
+  if (!(r === 'adhkar' && h[1] === 'c')) stopAud();
   const old = $('#top'); if (old) old.remove();
   $('#view').insertAdjacentHTML('beforebegin', v.head);
   $('#view').innerHTML = v.body + '<footer class="rights">الحقوق المحفوظة لـ محمد مجدي ♥</footer>';
@@ -418,7 +423,7 @@ window.addEventListener('hashchange', render);
 
 /* ---------- events ---------- */
 document.addEventListener('click', async e => {
-  const t = e.target.closest('[data-chk],[data-snd],[data-city],[data-geo],[data-dh],[data-dreset],[data-qtab],[data-mark],[data-qs],[data-wdone],[data-ppd],[data-tday],[data-tchk],[data-alarm],[data-premin],[data-iqmin],[data-perm],[data-asound],[data-aprev],[data-loc],[data-retry],[data-sh],[data-shclose],[data-testalarm],[data-tasnav],[data-tast],[data-tasreset],[data-compass],[data-share],[data-install],[data-suhoor],[data-suhmin],[data-method]');
+  const t = e.target.closest('[data-chk],[data-snd],[data-city],[data-geo],[data-dh],[data-dreset],[data-qtab],[data-mark],[data-qs],[data-wdone],[data-ppd],[data-tday],[data-tchk],[data-alarm],[data-premin],[data-iqmin],[data-aud],[data-arate],[data-off],[data-school],[data-sprev],[data-asound],[data-aprev],[data-loc],[data-retry],[data-sh],[data-shclose],[data-testalarm],[data-tasnav],[data-tast],[data-tasreset],[data-compass],[data-share],[data-install],[data-suhoor],[data-suhmin],[data-method]');
   if (Date.now() - lpAt < 700 && e.target.closest('[data-chk],[data-tchk]')) { return; }
   if (!t) return; const d = t.dataset;
   if (d.retry !== undefined) { if (/^#\/prayers/.test(location.hash) || !location.hash) refreshTimes(); else render(); return; }
@@ -444,6 +449,11 @@ document.addEventListener('click', async e => {
   else if (d.premin) { const a = store.get('alarm', {}); a.preMin = +d.premin; store.set('alarm', a); render(); }
   else if (d.iqmin) { const a = store.get('alarm', {}); a.iqMin = +d.iqmin; store.set('alarm', a); render(); }
   else if (d.loc !== undefined) { navigator.geolocation ? navigator.geolocation.getCurrentPosition(() => { toast('تم السماح بالموقع ✓'); render(); }, () => toast('الموقع مرفوض. فعّله من إعدادات المتصفح.'), { timeout: 10000 }) : toast('الجهاز مش بيدعم الموقع'); }
+  else if (d.aud) { playAud(d.aud, d.af); }
+  else if (d.arate !== undefined) { adRate = adRate === 1 ? 1.25 : adRate === 1.25 ? 1.5 : adRate === 1.5 ? 0.75 : 1; if (adA) adA.playbackRate = adRate; render(); }
+  else if (d.sprev) { playSound(d.sprev); }
+  else if (d.school !== undefined) { store.set('school', +d.school); refreshTimes(); }
+  else if (d.off) { const [k, dv] = d.off.split(':'), o = store.get('offs', {}); o[k] = Math.max(-30, Math.min(30, (o[k] || 0) + +dv)); store.set('offs', o); refreshTimes(); }
   else if (d.asound) { const a = store.get('alarm', {}); a.sound = d.asound; store.set('alarm', a); render(); playSound(d.asound); }
   else if (d.aprev !== undefined) { playSound(store.get('alarm', {}).sound || 'aaqib'); }
   else if (d.perm !== undefined) { if ('Notification' in window) { await Notification.requestPermission(); render(); } }
@@ -500,7 +510,7 @@ async function startCompass() {
   try { if (D && D.requestPermission) { if ((await D.requestPermission()) !== 'granted') { m.textContent = 'محتاج إذن الحساسات'; return; } } } catch (e) { m.textContent = 'مقدرتش أشغل البوصلة'; return; }
   if (!D) { m.textContent = 'الجهاز مش بيدعم البوصلة'; return; }
   if (cmpOn) return; cmpOn = true; m.textContent = 'لف الموبايل لحد ما السهم يبقى لفوق';
-  const h = ev => { const v = typeof ev.webkitCompassHeading === 'number' ? ev.webkitCompassHeading : (ev.alpha != null ? (360 - ev.alpha) % 360 : null); if (v == null) return; const ar = $('#qar'); if (!ar) return; const rot = window.__qb - v; ar.style.transform = `rotate(${rot}deg)`; const dd = Math.abs(((rot % 360) + 540) % 360 - 180); $('#cmp').classList.toggle('ok', 180 - dd < 5); };
+  const h = ev => { const v = typeof ev.webkitCompassHeading === 'number' ? ev.webkitCompassHeading : (ev.alpha != null ? (360 - ev.alpha) % 360 : null); if (v == null) return; const ar = $('#qar'); if (!ar) return; const rot = window.__qb - v; ar.style.transform = `rotate(${rot}deg)`; const qd = $('#qn'); if (qd) qd.style.transform = `rotate(${-v}deg)`; const dd = Math.abs(((rot % 360) + 540) % 360 - 180); $('#cmp').classList.toggle('ok', 180 - dd < 5); };
   window.addEventListener('deviceorientationabsolute', h, true); window.addEventListener('deviceorientation', h, true);
 }
 
@@ -509,7 +519,16 @@ let swReg = null, fired = {}, audio = null;
 async function notify(title, body) {
   try { if ('Notification' in window && Notification.permission === 'granted') { if (swReg) swReg.showNotification(title, { body, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', tag: title, dir: 'rtl', lang: 'ar', vibrate: [200, 100, 200] }).catch(() => toast(title + ': ' + body)); else new Notification(title, { body }); } else toast(title + ': ' + body); } catch (e) { toast(title); }
 }
-const SOUNDS = [['aaqib', 'أذان هادي (عاقب عزيز)'], ['sabah', 'صباح فخري'], ['makkah', 'المسجد الحرام، مكة']];
+const ADB = 'https://cdn.jsdelivr.net/gh/rn0x/Adhkar-json@main/audio/';
+let adA = null, curAud = null, adRate = 1;
+function stopAud() { try { if (adA) { adA.pause(); adA = null; } } catch (e) {} curAud = null; }
+function playAud(key, file) {
+  if (curAud === key && adA) { stopAud(); render(); return; }
+  stopAud(); stopAdhan(); curAud = key;
+  try { adA = new Audio(ADB + file); adA.playbackRate = adRate; adA.onended = () => { curAud = null; adA = null; render(); }; adA.onerror = () => { curAud = null; adA = null; toast('الصوت محتاج إنترنت'); render(); }; adA.play().catch(() => { curAud = null; render(); }); } catch (e) { curAud = null; }
+  render();
+}
+const SOUNDS = [['aaqib', 'أذان هادي', 'بصوت عاقب عزيز'], ['sabah', 'صباح فخري', 'سوريا، المدرسة الحلبية'], ['makkah', 'المسجد الحرام', 'مكة المكرمة']];
 let prevA = null;
 function stopAdhan() { try { if (audio) { audio.pause(); audio.currentTime = 0; } if (prevA) { prevA.pause(); prevA = null; } } catch (e) {} }
 function playSound(id) { stopAdhan(); try { const a = new Audio('audio/adhan-' + id + '.mp3'); prevA = a; a.onerror = () => toast('الصوت مش متاح دلوقتي'); a.play().catch(() => toast('اضغط تاني لتشغيل الصوت')); } catch (e) {} }

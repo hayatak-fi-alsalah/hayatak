@@ -124,3 +124,17 @@ nav a{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font
 img,svg,canvas{max-width:100%}
 .hint{font-size:12.5px;color:var(--ink2);text-align:center;margin:10px 6px 0;line-height:1.7}
 .chk,.prow{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+.compass{width:min(78vw,300px);height:min(78vw,300px);background:radial-gradient(circle at 50% 50%,var(--card) 0 58%,var(--card2) 100%);box-shadow:0 8px 30px #0006,inset 0 0 0 10px #ffffff08;transition:border-color .2s,box-shadow .2s}
+.compass.ok{box-shadow:0 0 34px #3ddc8466,inset 0 0 0 10px #3ddc8422}
+.compass .dial{position:absolute;inset:8px;border-radius:50%;transition:transform .2s;border:2px dashed #ffffff30}
+.compass .dial i{position:absolute;font-style:normal;font-size:13px;color:var(--ink2)}
+.dial .n{top:-2px;left:50%;transform:translateX(-50%);color:#ff6b6b;font-weight:800;background:var(--card);padding:0 4px}.dial .s{bottom:-2px;left:50%;transform:translateX(-50%);background:var(--card);padding:0 4px}.dial .e{right:-4px;top:50%;transform:translateY(-50%);background:var(--card);padding:0 2px}.dial .w{left:-4px;top:50%;transform:translateY(-50%);background:var(--card);padding:0 2px}
+.compass .ar:before{background:linear-gradient(var(--ac2),transparent);width:5px;top:52px}.compass.ok .ar:before{background:linear-gradient(#3ddc84,transparent)}
+.compass .hub{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:var(--ac3);color:var(--ac2);display:grid;place-items:center;font-size:26px;box-shadow:0 0 0 6px #ffffff0a}
+.compass.ok .hub{background:#1d4d33;color:#3ddc84}
+.aud{flex:none;width:36px;height:36px;border-radius:50%;border:0;background:var(--ac3);color:var(--ac2);font-size:14px;cursor:pointer;display:grid;place-items:center}.aud.on{background:var(--ac2);color:#14121c}
+.dh{position:relative}.dh .aud{position:absolute;left:10px;top:10px}
+.plyr{display:flex;gap:10px;align-items:center}.plyr .btn{flex:1}
+.slist{display:flex;flex-direction:column;gap:8px;margin:6px 0 12px}.srow{display:flex;align-items:center;gap:12px;background:var(--card2);border-radius:18px;padding:10px 12px;border:1.5px solid transparent}.srow.sel{border-color:var(--ac2)}.srow .ck{color:var(--ac2);font-weight:800;width:20px;text-align:center}
+.step{display:flex;align-items:center;gap:8px}.step .ib{width:34px;height:34px;font-size:18px}
+.dh .aud{top:auto;bottom:10px;left:12px}.dh .c{padding-left:46px;min-height:36px;align-items:center}
