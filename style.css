@@ -174,8 +174,8 @@ nav#nav{transform:translateZ(0);box-shadow:0 2px 10px #0006}
 .qn{min-width:38px;height:38px;border-radius:12px;background:#2b2933;color:var(--ink);display:grid;place-items:center;font-size:14px;padding:0 8px}
 
 /* home sky */
-body.home{background:#15122b}
-body.home::before{content:"";position:absolute;inset:0 0 auto 0;height:430px;z-index:-1;pointer-events:none;
+body.home{background:#15122b!important}
+body.home::before{content:"";position:absolute;inset:0 0 auto 0;height:430px;z-index:0;pointer-events:none;
 background:
 radial-gradient(2px 2px at 12% 18%,#fff8 50%,transparent 52%),radial-gradient(1.5px 1.5px at 30% 8%,#fff7 50%,transparent 52%),radial-gradient(2px 2px at 55% 22%,#e8c26aaa 50%,transparent 52%),radial-gradient(1.5px 1.5px at 78% 12%,#fff8 50%,transparent 52%),radial-gradient(1.5px 1.5px at 90% 30%,#fff6 50%,transparent 52%),radial-gradient(2px 2px at 8% 42%,#fff6 50%,transparent 52%),radial-gradient(1.5px 1.5px at 66% 6%,#fff7 50%,transparent 52%),
 radial-gradient(ellipse 60% 22% at 72% 24%,#4b4688aa,transparent 70%),radial-gradient(ellipse 55% 20% at 18% 44%,#3a3772aa,transparent 70%),radial-gradient(ellipse 50% 16% at 85% 52%,#3f3a7a88,transparent 70%),
@@ -195,3 +195,8 @@ body.home{position:relative}
 .mosque{display:flex;flex-direction:column;align-items:center;margin:-34px 0 12px;position:relative}.mosque .mb{width:96px;height:96px;border-radius:50%;background:#26252d;border:1px dashed #4a4760;display:grid;place-items:center;font-size:40px;opacity:.9;margin-top:-4px}
 .mosque span{background:#26252d;border-radius:14px;padding:1px 14px;font-size:14px;color:var(--ink2);margin-top:-12px;position:relative}
 nav#nav{background:#2a2833;border:1px solid #3b384d;border-radius:36px}
+
+body.home #view,body.home header#top{position:relative;z-index:1}
+.sv{display:block}nav a .i{display:grid;place-items:center;height:26px;margin-bottom:2px}nav a .i .sv{width:24px;height:24px}
+.ib.dk .sv{width:22px;height:22px}.mosque .mb .sv{width:46px;height:46px;color:#8a85a3}.prow .snd .sv{width:26px;height:26px}.loc .arr .sv{width:18px;height:18px}
+.chips .pill{white-space:nowrap;font-size:13px;padding:8px 14px}

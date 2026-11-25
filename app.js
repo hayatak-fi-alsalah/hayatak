@@ -175,6 +175,19 @@ const GROUPS = [
 const used = new Set([1, ...GROUPS.flatMap(g => g[3])]);
 function groupCats(g) { if (g[0] === 'misc') return AD.filter(c => !used.has(c.id)).map(c => c.id); return g[3]; }
 
+const SV = (p, w = 24) => `<svg class="sv" width="${w}" height="${w}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+const IC = {
+  mosque: SV('<path d="M12 3c1.5 1.4 2 2.2 2 3.2a2 2 0 0 1-4 0c0-1 .5-1.8 2-3.2z"/><path d="M6 21v-7a6 6 0 0 1 12 0v7"/><path d="M3 21h18M9 21v-4a3 3 0 0 1 6 0v4"/>'),
+  quran: SV('<path d="M12 6c-2-1.5-5-2-8-1.5v13c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5v-13C17 4 14 4.5 12 6z"/><path d="M12 6v13"/>'),
+  hands: SV('<path d="M7 11V6.5a1.5 1.5 0 0 1 3 0V10M10 10V4.5a1.5 1.5 0 0 1 3 0V10M13 10V5.5a1.5 1.5 0 0 1 3 0V12"/><path d="M7 11 5.5 9.5a1.4 1.4 0 0 0-2 2L8 17c1.2 2.2 2.8 3 5 3h1.5a3.5 3.5 0 0 0 3.5-3.5V9.5a1.5 1.5 0 0 0-3 0"/>'),
+  clock: SV('<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M5 4 2.5 6.5M19 4l2.5 2.5"/>'),
+  check: SV('<path d="M12 3l2.4 1.8 3-.2 1 2.8 2.4 1.8-.9 2.9.9 2.9-2.4 1.8-1 2.8-3-.2L12 21l-2.4-1.8-3 .2-1-2.8L3.2 14.8l.9-2.9-.9-2.9 2.4-1.8 1-2.8 3 .2z"/><path d="m8.5 12.2 2.5 2.5 4.5-5"/>'),
+  compass: SV('<circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/>'),
+  beads: SV('<circle cx="12" cy="4" r="1.6"/><circle cx="17" cy="7" r="1.6"/><circle cx="18.5" cy="12.5" r="1.6"/><circle cx="16" cy="18" r="1.6"/><circle cx="10" cy="19.5" r="1.6"/><circle cx="5.5" cy="15.5" r="1.6"/><circle cx="5.5" cy="9" r="1.6"/>'),
+  gear: SV('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'),
+  spk: SV('<path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z" fill="currentColor"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/>'),
+  nav: SV('<path d="m3 11 18-8-8 18-2-8z" fill="currentColor"/>', 18)
+};
 /* ---------- views ---------- */
 const V = {};
 function hdr(title, icons = '', back = false) {
@@ -187,16 +200,16 @@ V.prayers = () => {
   const np = nextPrayer(), t = trk()[iso()] || {}, snd = store.get('snd', {});
   const pct = Math.max(0, Math.min(100, 100 - (np.left / np.span) * 100));
   const g = new Date();
-  const fast = (day.hd >= 13 && day.hd <= 15) ? 'الأيام البيض، صيام مستحب' : (g.getDay() === 1 || g.getDay() === 4) ? (g.getDay() === 1 ? 'صيام الاثنين' : 'صيام الخميس') : '';
-  const rows = PR.map(([k, n]) => `<div class="prow${np.k === k ? ' now' : ''}"><button class="chk${chkCls(t, k)}" data-chk="${k}" aria-label="صليت ${n}">${chkIn(t, k)}</button><div class="n">${n}${chkTag(t, k)}<div class="iq">الإقامة ${hm12(secs(day.t[k]) + iqGap(k) * 60)}</div></div><div class="t">${to12(day.t[k])}</div><button class="snd${snd[k] === false ? ' off' : ''}" data-snd="${k}" aria-label="صوت الأذان">🔊</button></div>`).join('');
+  const fast = (day.hd >= 13 && day.hd <= 15) ? 'الأيام البيض' : (g.getDay() === 1 || g.getDay() === 4) ? (g.getDay() === 1 ? 'صيام الاثنين' : 'صيام الخميس') : '';
+  const rows = PR.map(([k, n]) => `<div class="prow${np.k === k ? ' now' : ''}"><button class="chk${chkCls(t, k)}" data-chk="${k}" aria-label="صليت ${n}">${chkIn(t, k)}</button><div class="n">${n}${chkTag(t, k)}<div class="iq">الإقامة ${hm12(secs(day.t[k]) + iqGap(k) * 60)}</div></div><div class="t">${to12(day.t[k])}</div><button class="snd${snd[k] === false ? ' off' : ''}" data-snd="${k}" aria-label="صوت الأذان">${IC.spk}</button></div>`).join('');
   return {
     head: '',
-    body: `<div class="htop"><div class="hh"><h2>${np.n} خلال</h2><div class="cd" id="cd">${fmtHMS(np.left)}</div></div><div class="hb"><a class="ib dk" href="#/qibla" aria-label="القبلة">🧭</a><a class="ib dk" href="#/tasbih" aria-label="تسبيح">📿</a><a class="ib dk" href="#/settings" aria-label="الإعدادات">⚙️</a></div></div>
+    body: `<div class="htop"><div class="hh"><h2>${np.n} خلال</h2><div class="cd" id="cd">${fmtHMS(np.left)}</div></div><div class="hb"><a class="ib dk" href="#/qibla" aria-label="القبلة">${IC.compass}</a><a class="ib dk" href="#/tasbih" aria-label="تسبيح">${IC.beads}</a><a class="ib dk" href="#/settings" aria-label="الإعدادات">${IC.gear}</a></div></div>
       <div class="hero"><div class="bar"><i id="cdbar" style="width:${pct}%"></i></div>
-      <a class="loc" href="#/city"><span>${(place.name || '').split('،')[0]}</span><span class="arr">➤</span></a>
+      <a class="loc" href="#/city"><span>${(place.name || '').split('،')[0]}</span><span class="arr">${IC.nav}</span></a>
       <div class="sub dt">${day.hijri} • ${new Intl.DateTimeFormat('ar-EG', { day: 'numeric', month: 'long', year: 'numeric' }).format(g)}</div>
       <div class="chips"><span class="pill s">تتبع الصلاة مفعّل <i class="tk">✓</i></span>${fast ? `<span class="pill">🌙 ${fast}</span>` : `<span class="pill">🌙 ${fastNext()}</span>`}</div></div>
-      <div class="card plist" style="padding:6px 10px">${rows}</div><div class="mosque"><div class="mb">🕌</div><span>${num(NAF.reduce((a, x) => a + (t['n' + x[0]] ? x[2] : 0), 0))}/١٢</span></div>${store.get('hintLP') ? '' : '<div class="hint">💡 اضغط مطولا على دايرة أي صلاة تختار حالتها: في الوقت، متأخرة، فائتة، جماعة، في المسجد</div>'}
+      <div class="card plist" style="padding:6px 10px">${rows}</div><div class="mosque"><div class="mb">${IC.mosque}</div><span>${num(NAF.reduce((a, x) => a + (t['n' + x[0]] ? x[2] : 0), 0))}/١٢</span></div>${store.get('hintLP') ? '' : '<div class="hint">💡 اضغط مطولا على دايرة أي صلاة تختار حالتها: في الوقت، متأخرة، فائتة، جماعة، في المسجد</div>'}
       <div class="card"><h3>الشروق</h3><div class="sub">تنتهي صلاة الفجر عند ${to12(day.t.Sunrise)}</div></div>${thirds()}
       <div class="center"><a class="btn g" href="#/city" style="text-decoration:none;display:inline-block">تغيير المدينة</a></div>`
   };
@@ -431,7 +444,7 @@ V.settings = () => ({
 });
 
 /* ---------- router ---------- */
-const NAV = [['prayers', '🕌', 'الصلوات'], ['quran', '📖', 'القرآن'], ['adhkar', '🤲', 'الأذكار'], ['alarms', '⏰', 'المنبهات'], ['track', '✅', 'تتبع الصلوات']];
+const NAV = [['prayers', IC.mosque, 'الصلوات'], ['quran', IC.quran, 'القرآن'], ['adhkar', IC.hands, 'الأذكار'], ['alarms', IC.clock, 'المنبهات'], ['track', IC.check, 'تتبع الصلوات']];
 let rtk = 0, lastH = null;
 async function render() {
   const myr = ++rtk;
