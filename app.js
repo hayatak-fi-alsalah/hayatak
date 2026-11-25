@@ -380,7 +380,7 @@ V.settings = () => ({
    <div class="prm"><span>📍 الموقع<br><span class="muted">لحساب مواقيت الصلاة واتجاه القبلة حسب مكانك. تقدر تختار مدينتك بإيدك بدل كده.</span></span><b id="pm-loc">…</b></div>
    <button class="btn g" data-loc style="width:100%;margin:6px 0 12px">السماح بالموقع</button>
    <div class="prm"><span>🔔 الإشعارات<br><span class="muted">لتنبيهات الصلاة والإقامة والجمعة والورد والسحور.</span></span><b>${'Notification' in window ? ({ granted: 'مسموح ✓', denied: 'مرفوض', default: 'لسه' })[Notification.permission] : 'مش مدعوم'}</b></div>
-   ${NATIVE ? `<div class="card"><h3>لو التنبيهات مش بتشتغل والتطبيق مقفول</h3><div class="muted" style="line-height:1.9">بعض الموبايلات (ريلمي، أوبو، شاومي، هواوي، وبعض سامسونج) بتقفل التطبيقات في الخلفية عشان توفر البطارية. اعمل الخطوات دي مرة واحدة:<br>١. اضغط "إعدادات البطارية" واختار حياتك في الصلاة، وخليها "بدون قيود" أو "السماح بالنشاط في الخلفية".<br>٢. اضغط "التشغيل التلقائي" وفعّله للتطبيق.<br>٣. من إعدادات التطبيق، تأكد إن الإشعارات والمنبهات مسموحة.<br>٤. في قائمة التطبيقات الأخيرة، اسحب على التطبيق ومسكه لحد ما يظهر القفل 🔒.</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn" data-nat="battery">إعدادات البطارية</button><button class="btn g" data-nat="auto">التشغيل التلقائي</button><button class="btn g" data-nat="app">إعدادات التطبيق</button></div></div>` : ''}
+   ${NATIVE ? `<div class="card"><h3>لو التنبيهات مش بتشتغل والتطبيق مقفول</h3><div class="muted" style="line-height:1.9">بعض الموبايلات (ريلمي، أوبو، شاومي، هواوي، وبعض سامسونج) بتقفل التطبيقات في الخلفية عشان توفر البطارية. اعمل الخطوات دي مرة واحدة:<br>١. اضغط "إعدادات البطارية" واختار حياتك في الصلاة، وخليها "بدون قيود" أو "السماح بالنشاط في الخلفية".<br>٢. اضغط "التشغيل التلقائي" وفعّله للتطبيق.<br>٣. من إعدادات التطبيق، تأكد إن الإشعارات والمنبهات مسموحة.<br>٤. في قائمة التطبيقات الأخيرة، اسحب على التطبيق ومسكه لحد ما يظهر القفل 🔒.</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn" data-nat="battery">إعدادات البطارية</button><button class="btn g" data-nat="auto">التشغيل التلقائي</button><button class="btn g" data-nat="app">إعدادات التطبيق</button></div></div><div class="card"><h3>تجربة التنبيه</h3><div class="muted" id="natst" style="line-height:1.9">${nativeStatus()}</div><button class="btn" data-nat="test" style="margin-top:10px">جرب تنبيه بعد ١٠ ثواني</button><div class="muted" style="margin-top:6px">اضغط الزرار، اقفل التطبيق واقفل الشاشة، وانتظر.</div></div>` : ''}
       <button class="btn g" data-perm style="width:100%;margin:6px 0 12px">تفعيل الإشعارات</button>
    <div class="prm"><span>🧭 حساسات الحركة<br><span class="muted">لبوصلة القبلة.</span></span><b>${window.DeviceOrientationEvent ? 'متاح' : 'مش مدعوم'}</b></div>
    <div class="prm"><span>🔊 الصوت والاهتزاز<br><span class="muted">لصوت الأذان وعدّاد التسبيح. مش محتاج إذن.</span></span><b>تلقائي</b></div>
@@ -452,6 +452,7 @@ document.addEventListener('click', async e => {
   else if (d.iqmin) { const a = store.get('alarm', {}); a.iqMin = +d.iqmin; store.set('alarm', a); render(); }
   else if (d.loc !== undefined) { navigator.geolocation ? navigator.geolocation.getCurrentPosition(() => { toast('تم السماح بالموقع ✓'); render(); }, () => toast('الموقع مرفوض. فعّله من إعدادات المتصفح.'), { timeout: 10000 }) : toast('الجهاز مش بيدعم الموقع'); }
   else if (d.aud) { playAud(d.aud, d.af); }
+  else if (d.nat === 'test') { await nativeTest(); }
   else if (d.nat) { try { const p = window.Capacitor.registerPlugin('SettingsOpener'); await p.open({ kind: d.nat }); } catch (e) { toast('افتح إعدادات الموبايل ← التطبيقات ← حياتك في الصلاة ← البطارية'); } }
   else if (d.qa) { playQA(d.qa); }
   else if (d.arate !== undefined) { adRate = adRate === 1 ? 1.25 : adRate === 1.25 ? 1.5 : adRate === 1.5 ? 0.75 : 1; if (adA) adA.playbackRate = adRate; render(); }
@@ -592,7 +593,8 @@ window.addEventListener('error', () => { if (Date.now() - errT > 5000) { errT = 
 window.addEventListener('unhandledrejection', ev => { ev.preventDefault(); });
 
 /* ---------- native Android: closed-app alarms ---------- */
-const LN = () => window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications;
+let _ln = null;
+const LN = () => { if (_ln) return _ln; try { const C = window.Capacitor; if (!C) return null; _ln = (C.Plugins && C.Plugins.LocalNotifications) || C.registerPlugin('LocalNotifications'); } catch (e) { store.set('nativeErr', 'LN:' + e); } return _ln; };
 const NVOICES = ['aaqib', 'sabah', 'makkah'];
 async function nativeAsk() {
   const ln = LN(); if (!ln) return;
@@ -627,7 +629,7 @@ async function nativeSync() {
   const sig = JSON.stringify([a, snd, store.get('offs', {}), store.get('method', 0), store.get('school', 0), place.lat, place.lon, iso()]);
   if (sig === nativeSig) return; nativeBusy = true;
   try {
-    const perm = await ln.checkPermissions(); if (!perm || perm.display !== 'granted') { nativeBusy = false; return; }
+    const perm = await ln.checkPermissions(); if (!perm || perm.display !== 'granted') { store.set('nativeErr', 'إذن الإشعارات مش مفعّل'); nativeBusy = false; return; }
     const voice = NVOICES.includes(a.sound) ? a.sound : 'aaqib';
     for (const v of NVOICES) { try { await ln.createChannel({ id: 'adhan_' + v, name: 'الأذان', description: 'تنبيه وقت الأذان', importance: 5, sound: 'adhan_' + v + '.mp3', vibration: true, visibility: 1 }); } catch (e) {} }
     try { await ln.createChannel({ id: 'reminder', name: 'التذكيرات', description: 'قبل الصلاة والإقامة والأذكار', importance: 4, vibration: true, visibility: 1 }); } catch (e) {}
@@ -645,8 +647,23 @@ async function nativeSync() {
     });
     const pend = await ln.getPending(); if (pend && pend.notifications && pend.notifications.length) await ln.cancel({ notifications: pend.notifications.map(x => ({ id: x.id })) });
     if (out.length) await ln.schedule({ notifications: out });
-    nativeSig = sig; store.set('nativeCount', out.length);
-  } catch (e) {}
+    nativeSig = sig; store.set('nativeCount', out.length); store.set('nativeErr', ''); store.set('nativeNext', out.length ? Math.min(...out.map(x => +x.schedule.at)) : 0);
+  } catch (e) { store.set('nativeErr', String(e && (e.message || e)).slice(0, 120)); }
   nativeBusy = false;
 }
 if (NATIVE) { setTimeout(() => { nativeAsk(); }, 2500); setInterval(nativeSync, 20000); }
+
+function nativeStatus() {
+  const n = store.get('nativeCount', 0), e = store.get('nativeErr', ''), nx = store.get('nativeNext', 0);
+  return (e ? '⚠️ مشكلة: ' + e + '<br>' : '') + 'التنبيهات المجدولة: ' + num(n) + (nx ? '<br>أقرب تنبيه: ' + new Date(nx).toLocaleString('ar-EG', { weekday: 'long', hour: 'numeric', minute: 'numeric' }) : '');
+}
+async function nativeTest() {
+  const ln = LN(); if (!ln) { toast('مشكلة: مكتبة التنبيهات مش شغالة'); return; }
+  try {
+    const p = await ln.requestPermissions(); if (!p || p.display !== 'granted') { toast('الإشعارات مش مسموحة، فعّلها من إعدادات التطبيق'); return; }
+    try { await ln.createChannel({ id: 'adhan_aaqib', name: 'الأذان', description: 'تنبيه وقت الأذان', importance: 5, sound: 'adhan_aaqib.mp3', vibration: true, visibility: 1 }); } catch (e) {}
+    let ex = 'unknown'; try { ex = (await ln.checkExactNotificationSetting()).exact_alarm; } catch (e) {}
+    await ln.schedule({ notifications: [{ id: 777001, title: 'حياتك في الصلاة', body: 'تجربة التنبيه نجحت ✓', channelId: 'adhan_aaqib', schedule: { at: new Date(Date.now() + 10000), allowWhileIdle: true }, smallIcon: 'ic_stat_hayatak' }] });
+    toast('اتجدول بعد ١٠ ثواني (المنبهات الدقيقة: ' + ex + ')، اقفل التطبيق');
+  } catch (e) { toast('فشل: ' + String(e && (e.message || e)).slice(0, 80)); store.set('nativeErr', 'test:' + String(e && (e.message || e)).slice(0, 100)); }
+}
