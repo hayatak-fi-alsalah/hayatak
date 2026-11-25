@@ -332,8 +332,7 @@ V.settings = () => ({
   <a href="https://t.me/+201061428522" target="_blank" rel="noopener">تواصل والدعم (تيليجرام)<span class="m">↗</span></a></div>
   <div class="card"><h3>طريقة حساب المواقيت</h3><div class="chips">${METHODS.map(m => `<button class="chip${store.get('method', 0) === m[0] ? ' on' : ''}" data-method="${m[0]}">${m[1]}</button>`).join('')}</div><div class="muted">الوضع التلقائي بيختار الطريقة المناسبة لبلدك.</div></div>
   <div class="card"><button class="btn" data-share style="width:100%">مشاركة التطبيق مع الأصحاب</button>
-  <button class="btn g hide" id="inst" data-install style="width:100%;margin-top:10px">ثبّت التطبيق على الشاشة الرئيسية</button></div>
-  <div class="center muted">جميع الحقوق محفوظة © محمد مجدي</div>`
+  <button class="btn g hide" id="inst" data-install style="width:100%;margin-top:10px">ثبّت التطبيق على الشاشة الرئيسية</button></div>`
 });
 
 /* ---------- router ---------- */
@@ -349,7 +348,7 @@ async function render() {
   } catch (e) { v = { head: hdr('حياتك في الصلاة'), body: '<div class="card center sub">تعذر التحميل. تأكد من الاتصال وجرب تاني.</div>' }; }
   const old = $('#top'); if (old) old.remove();
   $('#view').insertAdjacentHTML('beforebegin', v.head);
-  $('#view').innerHTML = v.body;
+  $('#view').innerHTML = v.body + '<footer class="rights">الحقوق المحفوظة لـ محمد مجدي ♥</footer>';
   const top = ['prayers', 'quran', 'adhkar', 'alarms', 'track'].includes(r) ? r : (r === 'city' || r === 'settings' ? 'prayers' : r === 'tasbih' || r === 'qibla' ? 'adhkar' : r);
   $('#nav').innerHTML = NAV.map(([k, e, n]) => `<a href="#/${k}" class="${top === k ? 'on' : ''}"><span class="i">${e}</span>${n}</a>`).join('');
   if (!(h[1] === 'p')) window.scrollTo(0, 0);
