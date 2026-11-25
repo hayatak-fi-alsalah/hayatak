@@ -396,7 +396,7 @@ V.settings = () => ({
 
 /* ---------- router ---------- */
 const NAV = [['prayers', '🕌', 'الصلوات'], ['quran', '📖', 'القرآن'], ['adhkar', '🤲', 'الأذكار'], ['alarms', '⏰', 'المنبهات'], ['track', '✅', 'تتبع الصلوات']];
-let rtk = 0;
+let rtk = 0, lastH = null;
 async function render() {
   const myr = ++rtk;
   const h = (location.hash || '#/prayers').slice(2).split('/'); const r = h[0] || 'prayers';
@@ -415,7 +415,7 @@ async function render() {
   $('#view').innerHTML = v.body + '<footer class="rights">الحقوق المحفوظة لـ محمد مجدي ♥</footer>';
   const top = ['prayers', 'quran', 'adhkar', 'alarms', 'track'].includes(r) ? r : (r === 'city' || r === 'settings' ? 'prayers' : r === 'tasbih' || r === 'qibla' ? 'adhkar' : r);
   $('#nav').innerHTML = NAV.map(([k, e, n]) => `<a href="#/${k}" class="${top === k ? 'on' : ''}"><span class="i">${e}</span>${n}</a>`).join('');
-  if (!(h[1] === 'p')) window.scrollTo(0, 0);
+  if (location.hash !== lastH && !(h[1] === 'p')) window.scrollTo(0, 0); lastH = location.hash;
   if (r === 'tasbih') tasInit();
   if (r === 'settings' && navigator.permissions) navigator.permissions.query({ name: 'geolocation' }).then(p => { const el = $('#pm-loc'); if (el) el.textContent = ({ granted: 'مسموح ✓', denied: 'مرفوض', prompt: 'لسه' })[p.state] || p.state; }).catch(() => {});
 }
@@ -436,7 +436,7 @@ document.addEventListener('click', async e => {
     const m = $('#geomsg'); m.textContent = 'بحدد موقعك…';
     navigator.geolocation ? navigator.geolocation.getCurrentPosition(p => { place = { id: 'gps', name: 'موقعك الحالي', lat: p.coords.latitude, lon: p.coords.longitude }; store.set('place', place); location.hash = '#/prayers'; refreshTimes(); nameGps(); }, () => m.textContent = 'مقدرتش أحدد موقعك. اختار مدينتك من القايمة.', { timeout: 15000, maximumAge: 300000 }) : m.textContent = 'المتصفح مش بيدعم تحديد الموقع';
   }
-  else if (d.dh) { const [id, i] = d.dh.split(':'); const c = AD.find(x => x.id === +id); const st = store.get('ad.' + id, { d: iso(), c: {} }); const tot = c.items[i].count || 1; if ((st.c[i] || 0) < tot) { st.c[i] = (st.c[i] || 0) + 1; st.d = iso(); store.set('ad.' + id, st); buzz(10); render(); } }
+  else if (d.dh) { const [id, i] = d.dh.split(':'); const c = AD.find(x => x.id === +id); const st = store.get('ad.' + id, { d: iso(), c: {} }); const tot = c.items[i].count || 1; if ((st.c[i] || 0) < tot) { st.c[i] = (st.c[i] || 0) + 1; st.d = iso(); store.set('ad.' + id, st); buzz(10); const fin = st.c[i] >= tot; t.classList.toggle('done', fin); const sp = t.querySelector('.c span'); if (sp) sp.textContent = fin ? 'تم ✓' : num(st.c[i]) + ' / ' + num(tot); const hd = $('#view .card.sub'); if (hd) hd.textContent = `${num(c.items.filter((x, k) => (st.c[k] || 0) >= (x.count || 1)).length)} من ${num(c.items.length)} خلصتهم اليوم. دوس على الذكر كل مرة تقولها.`; } }
   else if (d.dreset) { store.set('ad.' + d.dreset, { d: iso(), c: {} }); render(); }
   else if (d.qtab) { store.set('qtab', d.qtab); render(); }
   else if (d.mark) { const m = store.get('marks', []), n = +d.mark, i = m.indexOf(n); i < 0 ? m.push(n) : m.splice(i, 1); store.set('marks', m); render(); }
@@ -472,7 +472,9 @@ document.addEventListener('click', async e => {
   else if (d.method !== undefined) { store.set('method', +d.method); refreshTimes(); }
   else if (d.install !== undefined && deferred) { deferred.prompt(); deferred = null; }
 });
-document.addEventListener('input', async e => {
+let dbT = null;
+document.addEventListener('input', e => { clearTimeout(dbT); dbT = setTimeout(() => onInput(e), e.target.id === 'qs2' ? 300 : 120); });
+async function onInput(e) {
   if (e.target.id === 'q') {
     await loadAd(); const v = e.target.value.trim().replace(/[\u064B-\u0652\u0670]/g, ''); const out = $('#qr');
     if (v.length < 2) { out.innerHTML = ''; return; }
@@ -484,7 +486,7 @@ document.addEventListener('input', async e => {
     const res = []; q.pages.forEach((p, pi) => p.forEach(([s, a, t]) => { if (res.length < 40 && t.replace(/[\u064B-\u0652\u0670\u0671\u06E1\u0653-\u0655]/g, '').replace(/[ٱأإآ]/g, 'ا').includes(v.replace(/[ٱأإآ]/g, 'ا'))) res.push([s, a, t, pi + 1]); }));
     out.innerHTML = res.map(([s, a, t, p]) => `<a href="#/quran/p/${p}" style="display:block"><b>${q.surahs[s - 1].name} ${num(a)}</b><div style="font-family:AmiriQuran,serif;font-size:18px;line-height:2">${t}</div></a>`).join('') || '<div class="muted" style="padding:10px">مفيش نتائج</div>';
   }
-});
+}
 
 /* tasbih beads */
 let off = 0;
@@ -550,15 +552,24 @@ function checkAlarms() {
     ev.forEach(([w, s, msg, snd2]) => { const id = iso() + k + w; if (a[w] && now >= s && now < s + 45 && !fired[id]) { fired[id] = 1; notify('حياتك في الصلاة', msg); if (snd2) playAdhan(); } });
   });
 }
+let tick = 0;
 setInterval(() => {
   try { const el = $('#cd'); if (day && el) { const np = nextPrayer(); el.textContent = fmtHMS(np.left); const bar = $('#cdbar'); if (bar) bar.style.width = Math.max(0, Math.min(100, 100 - np.left / np.span * 100)) + '%'; if ((np.left === 0 || np.left > 86300 || day.d && day.d !== iso()) && Date.now() - lastRT > 60000) refreshTimes(); }
-  } catch (e) {} try { checkAlarms(); } catch (e) {}
+  } catch (e) {} if (++tick % 5 === 0) { try { checkAlarms(); } catch (e) {} }
 }, 1000);
 
 /* ---------- boot ---------- */
 let deferred = null;
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; const b = $('#inst'); if (b) b.classList.remove('hide'); });
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').then(r => { swReg = r; }).catch(() => {});
+if ('serviceWorker' in navigator) {
+  const had = !!navigator.serviceWorker.controller; let upd = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) upd = true; });
+  window.addEventListener('hashchange', () => { if (upd && !$('#sheet')) location.reload(); });
+  document.addEventListener('visibilitychange', () => { if (upd && document.visibilityState === 'hidden') location.reload(); });
+  navigator.serviceWorker.register('sw.js').then(r => { swReg = r; r.update().catch(() => {}); }).catch(() => {});
+  const idle = window.requestIdleCallback || (f => setTimeout(f, 3000));
+  window.addEventListener('load', () => idle(() => { ['data/adhkar.json', 'data/quran.json', 'fonts/AmiriQuran.woff2'].forEach((u, k) => setTimeout(() => fetch(u).catch(() => {}), 2500 * (k + 1))); }));
+}
 if (!location.hash) location.hash = '#/prayers';
 if (place && place.id === 'gps') { if (place.name === 'موقعي') place.name = 'موقعك الحالي'; nameGps(); }
 render(); refreshTimes();

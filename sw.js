@@ -1,5 +1,5 @@
-const V = 'hayatak-v13';
-const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'manifest.webmanifest', 'data/adhkar.json', 'data/quran.json', 'fonts/Cairo.ttf', 'fonts/AmiriQuran.ttf', 'icons/icon-192.png', 'icons/icon-512.png', 'audio/adhan-aaqib.mp3', 'audio/adhan-sabah.mp3', 'audio/adhan-makkah.mp3'];
+const V = 'hayatak-v14';
+const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'manifest.webmanifest', 'fonts/Cairo.woff2', 'icons/icon-192.png', 'icons/icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => Promise.all(SHELL.slice(0, 6).map(u => c.add(new Request(u, { cache: 'reload' })))).then(() => Promise.all(SHELL.slice(6).map(u => c.add(new Request(u, { cache: 'reload' })).catch(() => {}))))).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== V).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {

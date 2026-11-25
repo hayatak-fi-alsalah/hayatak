@@ -1,5 +1,5 @@
-@font-face{font-family:Cairo;src:url(fonts/Cairo.ttf);font-weight:200 1000;font-display:swap}
-@font-face{font-family:AmiriQuran;src:url(fonts/AmiriQuran.ttf);font-display:swap}
+@font-face{font-family:Cairo;src:url(fonts/Cairo.woff2) format('woff2');font-weight:200 1000;font-display:swap}
+@font-face{font-family:AmiriQuran;src:url(fonts/AmiriQuran.woff2) format('woff2');font-display:swap}
 :root{--bg:#14121c;--bg2:#2a1a52;--card:#25232f;--card2:#2f2c3b;--ink:#f4f1fb;--ink2:#a9a3bd;--ac:#8b6be0;--ac2:#b69cff;--ac3:#3a2d63;--ok:#5fd39a;--gold:#e8c26a;--line:#383449}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Cairo,system-ui,sans-serif;font-size:16px;overscroll-behavior:none}
@@ -8,7 +8,7 @@ header#top{display:flex;align-items:center;gap:8px;padding:calc(14px + env(safe-
 header h1{margin:0;font-size:26px;font-weight:800;flex:1}
 .ib{width:46px;height:46px;border-radius:50%;border:0;background:rgba(255,255,255,.1);color:var(--ink);font-size:21px;display:grid;place-items:center;cursor:pointer;text-decoration:none;font-family:inherit}
 main{padding:8px 16px calc(110px + env(safe-area-inset-bottom));max-width:640px;margin:0 auto}
-nav#nav{position:fixed;bottom:calc(10px + env(safe-area-inset-bottom));left:12px;right:12px;max-width:616px;margin:0 auto;z-index:9;background:rgba(38,35,50,.96);backdrop-filter:blur(10px);border-radius:32px;display:flex;padding:6px;box-shadow:0 6px 24px rgba(0,0,0,.5)}
+nav#nav{position:fixed;bottom:calc(10px + env(safe-area-inset-bottom));left:12px;right:12px;max-width:616px;margin:0 auto;z-index:9;background:#262332;border-radius:32px;display:flex;padding:6px;box-shadow:0 6px 24px rgba(0,0,0,.5)}
 nav a{flex:1;text-align:center;padding:7px 0 6px;color:var(--ink2);text-decoration:none;font-size:11.5px;border-radius:26px}
 nav a .i{display:block;font-size:22px;line-height:1.3}
 nav a.on{background:var(--ac3);color:var(--ac2);font-weight:700}
@@ -138,3 +138,9 @@ img,svg,canvas{max-width:100%}
 .slist{display:flex;flex-direction:column;gap:8px;margin:6px 0 12px}.srow{display:flex;align-items:center;gap:12px;background:var(--card2);border-radius:18px;padding:10px 12px;border:1.5px solid transparent}.srow.sel{border-color:var(--ac2)}.srow .ck{color:var(--ac2);font-weight:800;width:20px;text-align:center}
 .step{display:flex;align-items:center;gap:8px}.step .ib{width:34px;height:34px;font-size:18px}
 .dh .aud{top:auto;bottom:10px;left:12px}.dh .c{padding-left:46px;min-height:36px;align-items:center}
+
+html{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+button,a,.dh,.rec,.prow{touch-action:manipulation}
+button:active,.dh:active,.chip:active{transform:scale(.97)}
+.card,.dh{contain:layout style}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
