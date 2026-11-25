@@ -2,7 +2,7 @@
 @font-face{font-family:AmiriQuran;src:url(fonts/AmiriQuran.woff2) format('woff2');font-display:swap}
 :root{--bg:#14121c;--bg2:#2a1a52;--card:#25232f;--card2:#2f2c3b;--ink:#f4f1fb;--ink2:#a9a3bd;--ac:#8b6be0;--ac2:#b69cff;--ac3:#3a2d63;--ok:#5fd39a;--gold:#e8c26a;--line:#383449}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Cairo,system-ui,sans-serif;font-size:16px;overscroll-behavior:none}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Cairo,system-ui,sans-serif;font-size:16px;overscroll-behavior-y:auto}
 body{min-height:100vh;background:linear-gradient(180deg,var(--bg2) 0,var(--bg) 340px) no-repeat,var(--bg)}
 header#top{display:flex;align-items:center;gap:8px;padding:calc(14px + env(safe-area-inset-top)) 18px 6px;max-width:640px;margin:0 auto}
 header h1{margin:0;font-size:26px;font-weight:800;flex:1}
@@ -111,7 +111,7 @@ input::placeholder{color:var(--ink2)}
 .chk{-webkit-user-select:none;user-select:none;touch-action:manipulation}
 #sheet{position:fixed;inset:0;z-index:50}.shbg{position:absolute;inset:0;background:#0009}.shp{position:absolute;left:0;right:0;bottom:0;background:var(--card,#26232f);border-radius:24px 24px 0 0;padding:18px 18px 26px;max-width:640px;margin:0 auto}.shp .chips{margin:8px 0 14px}
 /* polish: never wider than the screen */
-html,body{max-width:100%;overflow-x:hidden}
+body{overflow-x:clip}
 *,*::before,*::after{box-sizing:border-box}
 #view,.card,.hero{min-width:0;max-width:100%}
 .gems{font-size:min(8.6vw,40px);gap:0;padding:6px 0 14px;overflow:hidden}
