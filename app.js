@@ -7,6 +7,7 @@ const store = {
   get(k, d) { try { const v = localStorage.getItem('hq.' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem('hq.' + k, JSON.stringify(v)); } catch (e) {} }
 };
+const fetchJ = async (u, ms = 10000) => { const c = new AbortController(), tm = setTimeout(() => c.abort(), ms); try { const r = await fetch(u, { signal: c.signal }); if (!r.ok) throw new Error('http ' + r.status); return await r.json(); } finally { clearTimeout(tm); } };
 const iso = (d = new Date()) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 const toast = m => { const t = document.createElement('div'); t.className = 'toast'; t.textContent = m; document.body.appendChild(t); setTimeout(() => t.remove(), 2200); };
 const buzz = (ms = 15) => { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) {} };
@@ -49,19 +50,21 @@ async function loadDay(d) {
   const c = store.get(key);
   if (c) return c;
   const method = methodFor();
-  const r = await fetch(`https://api.aladhan.com/v1/timings/${dstr(d)}?latitude=${place.lat}&longitude=${place.lon}&method=${method}`);
-  const j = await r.json();
+  const j = await fetchJ(`https://api.aladhan.com/v1/timings/${dstr(d)}?latitude=${place.lat}&longitude=${place.lon}&method=${method}`);
+  if (!j || !j.data || !j.data.timings || !j.data.date) throw new Error('bad data');
   const h = j.data.date.hijri;
   const out = { t: j.data.timings, tz: j.data.meta.timezone, hijri: `${num(h.day)} ${h.month.ar} ${num(h.year)} هـ`, hd: +h.day, hm: +h.month.number, hy: +h.year, wd: h.weekday.ar };
   store.set(key, out); return out;
 }
+let failed = false, rtok = 0, lastRT = 0;
+function pruneCache() { try { const keep = new Set(); for (let i = -1; i <= 2; i++) keep.add(dstr(new Date(Date.now() + i * 864e5))); Object.keys(localStorage).forEach(k => { if (!k.startsWith('hq.t2.')) return; const m = k.match(/(\d\d-\d\d-\d{4})$/); if (m && !keep.has(m[1])) localStorage.removeItem(k); }); } catch (e) {} }
 async function refreshTimes() {
-  ready = false; render();
+  lastRT = Date.now(); const my = ++rtok; ready = false; failed = false; render();
   try {
     const d = new Date(), t = new Date(Date.now() + 864e5);
-    [day, tomorrow] = await Promise.all([loadDay(d), loadDay(t)]);
-    ready = true;
-  } catch (e) { day = store.get('lastDay'); tomorrow = null; ready = !!day; if (!day) toast('مفيش اتصال، جرب تاني'); }
+    const [a, b] = await Promise.all([loadDay(d), loadDay(t).catch(() => null)]);
+    if (my !== rtok) return; day = a; tomorrow = b; day.d = iso(); ready = true; pruneCache();
+  } catch (e) { if (my !== rtok) return; const ld = store.get('lastDay'); day = ld && ld.t ? ld : null; tomorrow = null; ready = !!day; failed = !day; if (day) toast('مفيش اتصال، بعرض آخر مواقيت محفوظة'); else toast('مفيش اتصال، جرب تاني'); }
   if (day && ready) store.set('lastDay', day);
   render();
 }
@@ -95,7 +98,7 @@ function sheet(date, k) {
 document.addEventListener('pointerdown', ev => { const b = ev.target.closest('[data-chk],[data-tchk]'); if (!b) return; const k = b.dataset.chk || b.dataset.tchk; if (/^n/.test(k)) return; clearTimeout(lpT); lpT = setTimeout(() => { lpAt = Date.now(); buzz(40); let date = iso(); if (b.dataset.tchk) { const d = new Date(); d.setDate(d.getDate() + store.get('tday', 0)); date = iso(d); } sheet(date, k); }, 500); });
 ['pointerup', 'pointercancel', 'pointermove', 'scroll'].forEach(x => document.addEventListener(x, () => clearTimeout(lpT), { passive: true }));
 document.addEventListener('contextmenu', ev => { if (ev.target.closest('[data-chk],[data-tchk]')) ev.preventDefault(); });
-const trk = () => store.get('trk', {});
+const trk = () => { const t = store.get('trk', {}); return t && typeof t === 'object' && !Array.isArray(t) ? t : {}; };
 function setTrk(t) { store.set('trk', t); }
 const NAFN = () => NAF.reduce((a, x) => a + x[2], 0);
 function dayTier(e) { e = e || {}; if (!PR.every(([k]) => e[k])) return 0; const nf = NAF.every(([k]) => e['n' + k]); return nf && e.w ? 3 : nf ? 2 : 1; }
@@ -118,8 +121,8 @@ const GEMS = ['⚫', '🟡', '🔷', '🟢', '🟣', '🔴', '💎'];
 
 /* ---------- data ---------- */
 let AD = null, QU = null;
-const loadAd = async () => AD || (AD = await (await fetch('data/adhkar.json')).json());
-const loadQu = async () => QU || (QU = await (await fetch('data/quran.json')).json());
+const loadAd = async () => AD || (AD = await fetchJ('data/adhkar.json', 30000));
+const loadQu = async () => QU || (QU = await fetchJ('data/quran.json', 45000));
 const GROUPS = [
   ['sel', '⭐', 'الأذكار المختارة', [130, 129, 107, 131, 34, 35, 132]],
   ['pray', '🕌', 'الصلاة', [6, 7, 10, 11, 12, 13, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 32, 33]],
@@ -149,7 +152,7 @@ function hdr(title, icons = '', back = false) {
 const ico = (href, e, label) => `<a class="ib" href="${href}" aria-label="${label}">${e}</a>`;
 
 V.prayers = () => {
-  if (!ready || !day) return { head: hdr('الصلوات', ico('#/settings', '⚙️', 'الإعدادات')), body: '<div class="card center sub">بحمّل المواقيت…</div>' };
+  if (!ready || !day) return { head: hdr('الصلوات', ico('#/settings', '⚙️', 'الإعدادات')), body: failed ? '<div class="card center"><div class="sub">تعذر تحميل المواقيت. تأكد من الاتصال وجرب تاني.</div><button class="btn" data-retry style="margin-top:12px">إعادة المحاولة</button><div class="sub" style="margin-top:12px">أو اختار مدينتك من الإعدادات.</div></div>' : '<div class="card center sub">بحمّل المواقيت…</div>' };
   const np = nextPrayer(), t = trk()[iso()] || {}, snd = store.get('snd', {});
   const pct = Math.max(0, Math.min(100, 100 - (np.left / np.span) * 100));
   const g = new Date();
@@ -315,7 +318,7 @@ V.ramadan = async () => {
   try {
     const hy = day ? (day.hm > 9 ? day.hy + 1 : day.hy) : 1448, key = `ram.${methodFor()}.${place.lat.toFixed(1)}.${place.lon.toFixed(1)}.${hy}`;
     let rows = store.get(key);
-    if (!rows) { const r = await fetch(`https://api.aladhan.com/v1/hijriCalendar/${hy}/9?latitude=${place.lat}&longitude=${place.lon}&method=${methodFor()}`); const j = await r.json(); rows = j.data.map(x => [x.date.hijri.day, x.date.gregorian.date, x.timings.Fajr, x.timings.Maghrib]); store.set(key, rows); }
+    if (!rows) { const j = await fetchJ(`https://api.aladhan.com/v1/hijriCalendar/${hy}/9?latitude=${place.lat}&longitude=${place.lon}&method=${methodFor()}`); if (!j || !Array.isArray(j.data) || !j.data.length) throw new Error('bad'); rows = j.data.map(x => [x.date.hijri.day, x.date.gregorian.date, x.timings.Fajr, x.timings.Maghrib]); store.set(key, rows); }
     const first = rows[0][1].split('-'), gd = new Date(+first[2], +first[1] - 1, +first[0]), left = Math.ceil((gd - new Date()) / 864e5);
     body = `<div class="card center"><div class="sub">${inR ? 'رمضان مبارك 🌙' : left > 0 ? 'باقي على رمضان تقريبا' : 'رمضان'}</div>${!inR && left > 0 ? `<div class="big">${num(left)} يوم</div>` : ''}<div class="sub">${hy} هـ</div></div>`;
     table = `<div class="card"><h3>إمساكية رمضان · ${place.name}</h3><div class="list">${rows.map(r => `<div class="li"><span>${num(r[0])} رمضان · ${num(+r[1].slice(0, 2)) + '/' + num(+r[1].slice(3, 5))}</span><span class="m">إمساك ${to12(r[2])} · إفطار ${to12(r[3])}</span></div>`).join('')}</div></div>`;
@@ -370,7 +373,9 @@ V.settings = () => ({
 
 /* ---------- router ---------- */
 const NAV = [['prayers', '🕌', 'الصلوات'], ['quran', '📖', 'القرآن'], ['adhkar', '🤲', 'الأذكار'], ['alarms', '⏰', 'المنبهات'], ['track', '✅', 'تتبع الصلوات']];
+let rtk = 0;
 async function render() {
+  const myr = ++rtk;
   const h = (location.hash || '#/prayers').slice(2).split('/'); const r = h[0] || 'prayers';
   let v;
   try {
@@ -378,7 +383,9 @@ async function render() {
     else if (r === 'ramadan') v = await V.ramadan();
     else if (r === 'quran') v = h[1] === 'p' ? await V.reader(h[2]) : h[1] === 's' ? await V.surah(h[2]) : h[1] === 'marks' ? await V.marks() : h[1] === 'search' ? await V.qsearch() : h[1] === 'wird' ? await V.wird() : await V.quran();
     else v = (V[r] || V.prayers)();
-  } catch (e) { v = { head: hdr('حياتك في الصلاة'), body: '<div class="card center sub">تعذر التحميل. تأكد من الاتصال وجرب تاني.</div>' }; }
+  } catch (e) { v = { head: hdr('حياتك في الصلاة', '', true), body: '<div class="card center"><div class="sub">تعذر التحميل. تأكد من الاتصال وجرب تاني.</div><button class="btn" data-retry style="margin-top:12px">إعادة المحاولة</button></div>' }; }
+  if (myr !== rtk) return;
+  if (!v || typeof v.body !== 'string') v = { head: hdr('حياتك في الصلاة'), body: '' };
   const old = $('#top'); if (old) old.remove();
   $('#view').insertAdjacentHTML('beforebegin', v.head);
   $('#view').innerHTML = v.body + '<footer class="rights">الحقوق المحفوظة لـ محمد مجدي ♥</footer>';
@@ -392,9 +399,10 @@ window.addEventListener('hashchange', render);
 
 /* ---------- events ---------- */
 document.addEventListener('click', async e => {
-  const t = e.target.closest('[data-chk],[data-snd],[data-city],[data-geo],[data-dh],[data-dreset],[data-qtab],[data-mark],[data-qs],[data-wdone],[data-ppd],[data-tday],[data-tchk],[data-alarm],[data-premin],[data-iqmin],[data-perm],[data-loc],[data-sh],[data-shclose],[data-testalarm],[data-tasnav],[data-tast],[data-tasreset],[data-compass],[data-share],[data-install],[data-suhoor],[data-suhmin],[data-method]');
+  const t = e.target.closest('[data-chk],[data-snd],[data-city],[data-geo],[data-dh],[data-dreset],[data-qtab],[data-mark],[data-qs],[data-wdone],[data-ppd],[data-tday],[data-tchk],[data-alarm],[data-premin],[data-iqmin],[data-perm],[data-loc],[data-retry],[data-sh],[data-shclose],[data-testalarm],[data-tasnav],[data-tast],[data-tasreset],[data-compass],[data-share],[data-install],[data-suhoor],[data-suhmin],[data-method]');
   if (Date.now() - lpAt < 700) { lpAt = 0; return; }
   if (!t) return; const d = t.dataset;
+  if (d.retry !== undefined) { if (/^#\/prayers/.test(location.hash) || !location.hash) refreshTimes(); else render(); return; }
   if (d.shclose !== undefined) { const x = $('#sheet'); if (x) x.remove(); return; }
   if (d.sh) { const [g, v] = d.sh.split(':'), tt = trk(), e = tt[d.sd] = tt[d.sd] || {}, k = d.sk; if (g === 'w') { if (v === 'x') { e[k] = false; e[k + 'x'] = 1; delete e[k + 'm']; } else { delete e[k + 'x']; e[k] = v === 'late' ? 'late' : true; } } else if (g === 'm') { delete e[k + 'x']; if (!e[k]) e[k] = true; e[k + 'm'] = e[k + 'm'] === v ? undefined : v; } else { e[k] = false; delete e[k + 'x']; delete e[k + 'm']; } setTrk(tt); sheet(d.sd, k); render(); return; }
   if (d.chk) { const a = trk(), k = iso(); a[k] = a[k] || {}; togP(a[k], d.chk); setTrk(a); buzz(); render(); }
@@ -478,7 +486,7 @@ async function startCompass() {
 /* ---------- notifications ---------- */
 let swReg = null, fired = {}, audio = null;
 async function notify(title, body) {
-  try { if ('Notification' in window && Notification.permission === 'granted') { if (swReg) swReg.showNotification(title, { body, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', tag: title, dir: 'rtl', lang: 'ar', vibrate: [200, 100, 200] }); else new Notification(title, { body }); } else toast(title + ': ' + body); } catch (e) { toast(title); }
+  try { if ('Notification' in window && Notification.permission === 'granted') { if (swReg) swReg.showNotification(title, { body, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', tag: title, dir: 'rtl', lang: 'ar', vibrate: [200, 100, 200] }).catch(() => toast(title + ': ' + body)); else new Notification(title, { body }); } else toast(title + ': ' + body); } catch (e) { toast(title); }
 }
 function playMasa() { try { const a = new Audio('audio/masaharati.mp3'); a.play().catch(() => {}); } catch (e) {} }
 function playAdhan() { const a = store.get('alarm', { audio: true }); if (!a.audio) return; try { audio = audio || new Audio('audio/adhan.mp3'); audio.currentTime = 0; audio.play().catch(() => {}); } catch (e) {} }
@@ -499,8 +507,8 @@ function checkAlarms() {
   });
 }
 setInterval(() => {
-  const el = $('#cd'); if (day && el) { const np = nextPrayer(); el.textContent = fmtHMS(np.left); const bar = $('#cdbar'); if (bar) bar.style.width = Math.max(0, Math.min(100, 100 - np.left / np.span * 100)) + '%'; if (np.left === 0 || np.left > 86300) refreshTimes(); }
-  checkAlarms();
+  try { const el = $('#cd'); if (day && el) { const np = nextPrayer(); el.textContent = fmtHMS(np.left); const bar = $('#cdbar'); if (bar) bar.style.width = Math.max(0, Math.min(100, 100 - np.left / np.span * 100)) + '%'; if ((np.left === 0 || np.left > 86300 || day.d && day.d !== iso()) && Date.now() - lastRT > 60000) refreshTimes(); }
+  } catch (e) {} try { checkAlarms(); } catch (e) {}
 }, 1000);
 
 /* ---------- boot ---------- */
@@ -509,3 +517,7 @@ window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferr
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').then(r => { swReg = r; }).catch(() => {});
 if (!location.hash) location.hash = '#/prayers';
 render(); refreshTimes();
+
+let errT = 0;
+window.addEventListener('error', () => { if (Date.now() - errT > 5000) { errT = Date.now(); } });
+window.addEventListener('unhandledrejection', ev => { ev.preventDefault(); });
