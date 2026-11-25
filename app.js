@@ -96,6 +96,11 @@ function nextPrayer() {
   const f = tomorrow ? secs(tomorrow.t.Fajr) : secs(day.t.Fajr);
   return { k: 'Fajr', n: 'الفجر', left: 86400 - now + f, span: 86400 - secs(day.t.Isha) + f, now, tmr: true };
 }
+function fastNext() {
+  const d = new Date(), names = { 1: 'الاثنين', 4: 'الخميس' };
+  for (let i = 1; i <= 7; i++) { const x = new Date(d.getTime() + i * 864e5), w = x.getDay(); if (names[w]) return (i === 1 ? 'غدا' : 'بعد ' + num(i) + ' أيام') + ' · ' + names[w]; }
+  return '';
+}
 function thirds() {
   if (!day) return '';
   const m = secs(day.t.Maghrib), f = (tomorrow ? secs(tomorrow.t.Fajr) : secs(day.t.Fajr)) + 86400, n = f - m;
@@ -185,11 +190,13 @@ V.prayers = () => {
   const fast = (day.hd >= 13 && day.hd <= 15) ? 'الأيام البيض، صيام مستحب' : (g.getDay() === 1 || g.getDay() === 4) ? (g.getDay() === 1 ? 'صيام الاثنين' : 'صيام الخميس') : '';
   const rows = PR.map(([k, n]) => `<div class="prow${np.k === k ? ' now' : ''}"><button class="chk${chkCls(t, k)}" data-chk="${k}" aria-label="صليت ${n}">${chkIn(t, k)}</button><div class="n">${n}${chkTag(t, k)}<div class="iq">الإقامة ${hm12(secs(day.t[k]) + iqGap(k) * 60)}</div></div><div class="t">${to12(day.t[k])}</div><button class="snd${snd[k] === false ? ' off' : ''}" data-snd="${k}" aria-label="صوت الأذان">🔊</button></div>`).join('');
   return {
-    head: hdr('', ico('#/settings', '⚙️', 'الإعدادات') + ico('#/tasbih', '📿', 'تسبيح') + ico('#/qibla', '🧭', 'القبلة')),
-    body: `<div class="hero"><h2>${np.n} خلال</h2><div class="cd" id="cd">${fmtHMS(np.left)}</div><div class="bar"><i id="cdbar" style="width:${pct}%"></i></div>
-      <div class="sub">📍 ${place.name}</div><a class="sub qchip" href="#/qibla">🕋 القبلة ${num(Math.round(qiblaB()))}° ${QN[Math.round(qiblaB() / 45) % 8]} · افتح البوصلة ›</a><div class="sub">${day.hijri} · ${new Intl.DateTimeFormat('ar-EG', { day: 'numeric', month: 'long', year: 'numeric' }).format(g)}</div>
-      ${fast ? `<span class="pill">🌙 ${fast}</span>` : ''}<span class="pill s">تتبع الصلاة مفعّل ✓</span></div>
-      <div class="card" style="padding:6px 10px">${rows}</div>${store.get('hintLP') ? '' : '<div class="hint">💡 اضغط مطولا على دايرة أي صلاة تختار حالتها: في الوقت، متأخرة، فائتة، جماعة، في المسجد</div>'}
+    head: '',
+    body: `<div class="htop"><div class="hh"><h2>${np.n} خلال</h2><div class="cd" id="cd">${fmtHMS(np.left)}</div></div><div class="hb"><a class="ib dk" href="#/qibla" aria-label="القبلة">🧭</a><a class="ib dk" href="#/tasbih" aria-label="تسبيح">📿</a><a class="ib dk" href="#/settings" aria-label="الإعدادات">⚙️</a></div></div>
+      <div class="hero"><div class="bar"><i id="cdbar" style="width:${pct}%"></i></div>
+      <a class="loc" href="#/city"><span>${(place.name || '').split('،')[0]}</span><span class="arr">➤</span></a>
+      <div class="sub dt">${day.hijri} • ${new Intl.DateTimeFormat('ar-EG', { day: 'numeric', month: 'long', year: 'numeric' }).format(g)}</div>
+      <div class="chips"><span class="pill s">تتبع الصلاة مفعّل <i class="tk">✓</i></span>${fast ? `<span class="pill">🌙 ${fast}</span>` : `<span class="pill">🌙 ${fastNext()}</span>`}</div></div>
+      <div class="card plist" style="padding:6px 10px">${rows}</div><div class="mosque"><div class="mb">🕌</div><span>${num(NAF.reduce((a, x) => a + (t['n' + x[0]] ? x[2] : 0), 0))}/١٢</span></div>${store.get('hintLP') ? '' : '<div class="hint">💡 اضغط مطولا على دايرة أي صلاة تختار حالتها: في الوقت، متأخرة، فائتة، جماعة، في المسجد</div>'}
       <div class="card"><h3>الشروق</h3><div class="sub">تنتهي صلاة الفجر عند ${to12(day.t.Sunrise)}</div></div>${thirds()}
       <div class="center"><a class="btn g" href="#/city" style="text-decoration:none;display:inline-block">تغيير المدينة</a></div>`
   };
@@ -439,6 +446,7 @@ async function render() {
   if (myr !== rtk) return;
   if (!v || typeof v.body !== 'string') v = { head: hdr('حياتك في الصلاة'), body: '' };
   if (!(r === 'adhkar' && h[1] === 'c')) stopAud();
+  document.body.classList.toggle('home', r === 'prayers' || r === '');
   const old = $('#top'); if (old) old.remove();
   $('#view').insertAdjacentHTML('beforebegin', v.head);
   $('#view').innerHTML = v.body + '<footer class="rights">الحقوق المحفوظة لـ محمد مجدي ♥</footer>';
