@@ -8,7 +8,7 @@ header#top{display:flex;align-items:center;gap:8px;padding:calc(14px + env(safe-
 header h1{margin:0;font-size:26px;font-weight:800;flex:1}
 .ib{width:46px;height:46px;border-radius:50%;border:0;background:rgba(255,255,255,.1);color:var(--ink);font-size:21px;display:grid;place-items:center;cursor:pointer;text-decoration:none;font-family:inherit}
 main{padding:8px 16px calc(110px + env(safe-area-inset-bottom));max-width:640px;margin:0 auto}
-nav#nav{position:fixed;bottom:calc(10px + env(safe-area-inset-bottom));left:12px;right:12px;max-width:616px;margin:0 auto;z-index:9;background:#262332;border-radius:32px;display:flex;padding:6px;box-shadow:0 6px 24px rgba(0,0,0,.5)}
+nav#nav{position:fixed;bottom:calc(10px + env(safe-area-inset-bottom));left:12px;right:12px;max-width:616px;margin:0 auto;z-index:9;background:#262332;border-radius:32px;display:flex;padding:6px;box-shadow:none}
 nav a{flex:1;text-align:center;padding:7px 0 6px;color:var(--ink2);text-decoration:none;font-size:11.5px;border-radius:26px}
 nav a .i{display:block;font-size:22px;line-height:1.3}
 nav a.on{background:var(--ac3);color:var(--ac2);font-weight:700}
@@ -145,8 +145,8 @@ button:active,.dh:active,.chip:active{transform:scale(.97)}
 .card,.dh{contain:layout style}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
-#view{animation:vin .12s ease-out}@keyframes vin{from{opacity:.4}to{opacity:1}}
-nav#nav{transform:translateZ(0);box-shadow:0 2px 10px #0006}
+
+nav#nav{transform:translateZ(0);box-shadow:none}
 
 /* status colours */
 .chk.on.a{background:#5fd39a;border-color:#5fd39a}
@@ -175,11 +175,7 @@ nav#nav{transform:translateZ(0);box-shadow:0 2px 10px #0006}
 
 /* home sky */
 body.home{background:#15122b!important}
-body.home::before{content:"";position:absolute;inset:0 0 auto 0;height:520px;z-index:0;pointer-events:none;
-background:
-radial-gradient(2.6px 2.6px at 10% 14%,#fff 45%,transparent 55%),radial-gradient(2px 2px at 24% 7%,#fffc 45%,transparent 55%),radial-gradient(3px 3px at 41% 16%,#ffe39a 45%,transparent 58%),radial-gradient(2px 2px at 58% 5%,#fffd 45%,transparent 55%),radial-gradient(2.6px 2.6px at 72% 13%,#fff 45%,transparent 55%),radial-gradient(2px 2px at 88% 8%,#ffe39acc 45%,transparent 55%),radial-gradient(2px 2px at 94% 27%,#fffb 45%,transparent 55%),radial-gradient(2.4px 2.4px at 6% 33%,#fffb 45%,transparent 55%),radial-gradient(2px 2px at 33% 29%,#fff9 45%,transparent 55%),radial-gradient(2px 2px at 62% 34%,#fff9 45%,transparent 55%),radial-gradient(2.2px 2.2px at 82% 40%,#fffa 45%,transparent 55%),radial-gradient(1.8px 1.8px at 17% 50%,#fff8 45%,transparent 55%),
-radial-gradient(ellipse 52% 12% at 78% 20%,#7a6fd0cc,transparent 72%),radial-gradient(ellipse 46% 10% at 70% 24%,#8f84e0aa,transparent 70%),radial-gradient(ellipse 58% 13% at 16% 38%,#6a5fc0bb,transparent 72%),radial-gradient(ellipse 44% 10% at 30% 43%,#7d72d09a,transparent 70%),radial-gradient(ellipse 50% 11% at 88% 52%,#6a5fc088,transparent 72%),
-linear-gradient(180deg,#3a2a85 0,#2a2065 35%,#1b1745 70%,#15122b 100%)}
+body.home::before{content:"";position:absolute;inset:0 0 auto 0;height:520px;z-index:0;pointer-events:none;background:url(icons/sky.jpg) top center/100% 100% no-repeat,#15122b}
 body.home{position:relative}
 .htop{display:flex;align-items:flex-start;justify-content:space-between;padding:calc(18px + env(safe-area-inset-top)) 2px 0}
 .hh h2{margin:0;font-size:28px;font-weight:800}.hh .cd{font-size:38px;font-weight:800;direction:ltr;text-align:right;font-variant-numeric:tabular-nums;color:#fff;margin:0}
@@ -251,3 +247,7 @@ background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' wid
 .qmore[hidden]{display:none}
 .srow,.rec{content-visibility:auto;contain-intrinsic-size:auto 64px}
 .qb,.qchip,.ib{transition:none}
+
+.hero .bar i{transition:none;will-change:auto}
+main{contain:layout style}
+.plist,.card{contain:layout paint}

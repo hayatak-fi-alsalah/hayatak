@@ -649,7 +649,7 @@ function checkAlarms() {
 }
 let tick = 0;
 setInterval(() => {
-  try { const el = $('#cd'); if (day && el) { const np = nextPrayer(); el.textContent = fmtHMS(np.left); const bar = $('#cdbar'); if (bar) bar.style.width = Math.max(0, Math.min(100, 100 - np.left / np.span * 100)) + '%'; if ((np.left === 0 || np.left > 86300 || day.d && day.d !== iso()) && Date.now() - lastRT > 60000) refreshTimes(); }
+  try { const el = $('#cd'); if (day && el) { const np = nextPrayer(); el.textContent = fmtHMS(np.left); if (tick % 20 === 0) { const bar = $('#cdbar'); if (bar) bar.style.width = Math.max(0, Math.min(100, 100 - np.left / np.span * 100)) + '%'; } if ((np.left === 0 || np.left > 86300 || day.d && day.d !== iso()) && Date.now() - lastRT > 60000) refreshTimes(); }
   } catch (e) {} if (++tick % 5 === 0 && !NATIVE) { try { checkAlarms(); } catch (e) {} }
 }, 1000);
 
