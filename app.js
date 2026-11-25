@@ -467,7 +467,7 @@ V.settings = () => ({
    <div class="prm"><span>📍 الموقع<br><span class="muted">لحساب مواقيت الصلاة واتجاه القبلة حسب مكانك. تقدر تختار مدينتك بإيدك بدل كده.</span></span><b id="pm-loc">…</b></div>
    <button class="btn g" data-loc style="width:100%;margin:6px 0 12px">السماح بالموقع</button>
    <div class="prm"><span>🔔 الإشعارات<br><span class="muted">لتنبيهات الصلاة والإقامة والجمعة والورد والسحور.</span></span><b>${'Notification' in window ? ({ granted: 'مسموح ✓', denied: 'مرفوض', default: 'لسه' })[Notification.permission] : 'مش مدعوم'}</b></div>
-   ${NATIVE ? `<div class="card"><h3>لو التنبيهات مش بتشتغل والتطبيق مقفول</h3><div class="muted" style="line-height:1.9">بعض الموبايلات (ريلمي، أوبو، شاومي، هواوي، وبعض سامسونج) بتقفل التطبيقات في الخلفية عشان توفر البطارية. اعمل الخطوات دي مرة واحدة:<br>١. اضغط "إعدادات البطارية" واختار حياتك في الصلاة، وخليها "بدون قيود" أو "السماح بالنشاط في الخلفية".<br>٢. اضغط "التشغيل التلقائي" وفعّله للتطبيق.<br>٣. من إعدادات التطبيق، تأكد إن الإشعارات والمنبهات مسموحة.<br>٤. في قائمة التطبيقات الأخيرة، اسحب على التطبيق ومسكه لحد ما يظهر القفل 🔒.</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn" data-nat="battery">إعدادات البطارية</button><button class="btn g" data-nat="auto">التشغيل التلقائي</button><button class="btn g" data-nat="app">إعدادات التطبيق</button></div></div><div class="card"><h3>تجربة التنبيه</h3><div class="muted" id="natst" style="line-height:1.9">${nativeStatus()}</div><button class="btn" data-nat="test" style="margin-top:10px">جرب تنبيه بعد ١٠ ثواني</button><div class="muted" style="margin-top:6px">اضغط الزرار، اقفل التطبيق واقفل الشاشة، وانتظر.</div></div>` : ''}
+   ${NATIVE ? `<div class="card"><h3>لو التنبيهات مش بتشتغل والتطبيق مقفول</h3><div class="muted" style="line-height:1.9">بعض الموبايلات (ريلمي، أوبو، شاومي، هواوي، وبعض سامسونج) بتقفل التطبيقات في الخلفية عشان توفر البطارية. اعمل الخطوات دي مرة واحدة:<br>١. اضغط "إعدادات البطارية" واختار حياتك في الصلاة، وخليها "بدون قيود" أو "السماح بالنشاط في الخلفية".<br>٢. اضغط "التشغيل التلقائي" وفعّله للتطبيق.<br>٣. من إعدادات التطبيق، تأكد إن الإشعارات والمنبهات مسموحة.<br>٤. في قائمة التطبيقات الأخيرة، اسحب على التطبيق ومسكه لحد ما يظهر القفل 🔒.</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn" data-nat="battery">إعدادات البطارية</button><button class="btn g" data-nat="auto">التشغيل التلقائي</button><button class="btn g" data-nat="app">إعدادات التطبيق</button></div></div><div class="card"><h3>تجربة التنبيه</h3><div class="muted" id="natst" style="line-height:1.9">${nativeStatus()}</div><div id="natdiag" style="line-height:2;margin-top:8px;font-size:13px"></div><button class="btn g" data-nat="diag" style="margin-top:10px">تحديث الحالة</button><button class="btn" data-nat="test" style="margin-top:10px">جرب تنبيه بعد ١٠ ثواني</button><div class="muted" style="margin-top:6px">اضغط الزرار، اقفل التطبيق واقفل الشاشة، وانتظر.</div></div>` : ''}
       <button class="btn g" data-perm style="width:100%;margin:6px 0 12px">تفعيل الإشعارات</button>
    <div class="prm"><span>🧭 حساسات الحركة<br><span class="muted">لبوصلة القبلة.</span></span><b>${window.DeviceOrientationEvent ? 'متاح' : 'مش مدعوم'}</b></div>
    <div class="prm"><span>🔊 الصوت والاهتزاز<br><span class="muted">لصوت الأذان وعدّاد التسبيح. مش محتاج إذن.</span></span><b>تلقائي</b></div>
@@ -508,6 +508,7 @@ async function render() {
   $('#nav').innerHTML = NAV.map(([k, e, n]) => `<a href="#/${k}" class="${top === k ? 'on' : ''}"><span class="i">${e}</span>${n}</a>`).join('');
   if (location.hash !== lastH && !(h[1] === 'p')) window.scrollTo(0, 0); lastH = location.hash;
   if (r === 'tasbih') tasInit();
+  if ($('#natdiag')) nativeDiag();
   if ($('#qframe')) qCur = +location.hash.split('/').pop() || 1;
   if (r === 'settings' && navigator.permissions) navigator.permissions.query({ name: 'geolocation' }).then(p => { const el = $('#pm-loc'); if (el) el.textContent = ({ granted: 'مسموح ✓', denied: 'مرفوض', prompt: 'لسه' })[p.state] || p.state; }).catch(() => {});
 }
@@ -556,6 +557,7 @@ document.addEventListener('click', async e => {
   else if (d.loc !== undefined) { navigator.geolocation ? navigator.geolocation.getCurrentPosition(() => { toast('تم السماح بالموقع ✓'); render(); }, () => toast('الموقع مرفوض. فعّله من إعدادات المتصفح.'), { timeout: 10000 }) : toast('الجهاز مش بيدعم الموقع'); }
   else if (d.aud) { playAud(d.aud, d.af); }
   else if (d.nat === 'test') { await nativeTest(); }
+  else if (d.nat === 'diag') { await nativeDiag(); }
   else if (d.nat) { try { const p = window.Capacitor.registerPlugin('SettingsOpener'); await p.open({ kind: d.nat }); } catch (e) { toast('افتح إعدادات الموبايل ← التطبيقات ← حياتك في الصلاة ← البطارية'); } }
   else if (d.qa) { playQA(d.qa); }
   else if (d.qdla) { dlQA([d.qdla]); }
@@ -801,7 +803,9 @@ async function nativeSync() {
     });
     try { const items = []; days.forEach(([dt, dd]) => PR.forEach(([k, name]) => { const m = String(dd.t[k]).match(/(\d+):(\d+)/); if (!m) return; const t = zonedEpoch(dt, +m[1], +m[2], dd.tz); if (t > now - 60000) items.push([name, t, to12(dd.t[k])]); })); items.sort((x, y) => x[1] - y[1]); await window.Capacitor.registerPlugin('SettingsOpener').persist({ on: a.persist !== false, items: JSON.stringify(items.slice(0, 40)) }); } catch (e) {}
     const pend = await ln.getPending(); if (pend && pend.notifications && pend.notifications.length) await ln.cancel({ notifications: pend.notifications.map(x => ({ id: x.id })) });
-    if (out.length) await ln.schedule({ notifications: out });
+    let viaNative = false;
+    try { const r = await window.Capacitor.registerPlugin('SettingsOpener').schedule({ items: JSON.stringify(out.map(x => ({ id: x.id, at: +x.schedule.at, title: x.title, body: x.body, ch: x.channelId })).sort((p, q) => p.at - q.at)) }); viaNative = r && typeof r.n === 'number'; } catch (e) { store.set('nativeErr', 'native:' + String(e && (e.message || e)).slice(0, 80)); }
+    if (!viaNative && out.length) await ln.schedule({ notifications: out });
     nativeSig = sig; store.set('nativeCount', out.length); store.set('nativeErr', ''); store.set('nativeNext', out.length ? Math.min(...out.map(x => +x.schedule.at)) : 0);
   } catch (e) { store.set('nativeErr', String(e && (e.message || e)).slice(0, 120)); }
   nativeBusy = false;
@@ -817,10 +821,27 @@ async function nativeTest() {
   try {
     const p = await ln.requestPermissions(); if (!p || p.display !== 'granted') { toast('الإشعارات مش مسموحة، فعّلها من إعدادات التطبيق'); return; }
     try { await ln.createChannel({ id: 'adhan_aaqib', name: 'الأذان', description: 'تنبيه وقت الأذان', importance: 5, sound: 'adhan_aaqib.mp3', vibration: true, visibility: 1 }); } catch (e) {}
-    let ex = 'unknown'; try { ex = (await ln.checkExactNotificationSetting()).exact_alarm; } catch (e) {}
-    await ln.schedule({ notifications: [{ id: 777001, title: 'حياتك في الصلاة', body: 'تجربة التنبيه نجحت ✓', channelId: 'adhan_aaqib', schedule: { at: new Date(Date.now() + 10000), allowWhileIdle: true }, smallIcon: 'ic_stat_hayatak' }] });
-    toast('اتجدول بعد ١٠ ثواني (المنبهات الدقيقة: ' + ex + ')، اقفل التطبيق');
+    await window.Capacitor.registerPlugin('SettingsOpener').testAlarm({ ch: 'adhan_aaqib' });
+    toast('اتجدول بعد ١٠ ثواني. اقفل التطبيق واقفل الشاشة.'); setTimeout(nativeDiag, 400);
   } catch (e) { toast('فشل: ' + String(e && (e.message || e)).slice(0, 80)); store.set('nativeErr', 'test:' + String(e && (e.message || e)).slice(0, 100)); }
+}
+async function nativeDiag() {
+  const el = $('#natdiag'); if (!el) return;
+  try {
+    const d = await window.Capacitor.registerPlugin('SettingsOpener').diag(), ok = v => v ? '✅' : '❌', L = [];
+    const ago = t => t ? new Date(t).toLocaleString('ar-EG', { weekday: 'short', hour: 'numeric', minute: 'numeric' }) : 'لسه';
+    const ch = d.ch ? JSON.parse(d.ch) : {};
+    L.push(ok(d.notif) + ' الإشعارات ' + (d.notif ? 'مفعّلة' : 'مقفولة (فعّلها من إعدادات التطبيق)'));
+    L.push(ok(d.battery) + ' البطارية: ' + (d.battery ? 'بدون قيود' : 'متقيّدة، اضغط "إعدادات البطارية"'));
+    L.push(ok(d.exact) + ' المنبهات الدقيقة: ' + (d.exact ? 'مسموحة' : 'مش مسموحة'));
+    L.push(ok(d.svc && Date.now() - d.svc < 3700000) + ' إشعار الصلاة القادمة الدائم: ' + (d.svc ? 'آخر نبضة ' + ago(d.svc) : 'مش شغّال'));
+    L.push(ok((ch.adhan_aaqib || 0) >= 4) + ' قناة الأذان: ' + ((ch.adhan_aaqib || 0) >= 4 ? 'صوت عالي' : (ch.adhan_aaqib === -1 ? 'مش موجودة' : 'اتخفّضت (' + ch.adhan_aaqib + ')، فعّل الصوت من إعدادات الإشعارات')));
+    L.push(ok(d.dnd <= 1) + ' عدم الإزعاج: ' + (d.dnd <= 1 ? 'مقفول' : 'مفعّل وممكن يمنع الصوت'));
+    L.push('🔔 تنبيهات مجدولة: ' + num(d.n) + (d.first ? ' · أقربها ' + ago(d.first) : ''));
+    L.push((d.fired ? '✅' : '⚪') + ' تنبيهات وصلت فعلا: ' + num(d.fired) + (d.last ? ' · آخرها ' + ago(d.last) : ''));
+    L.push('<span class="muted">' + (d.brand || '') + ' · أندرويد ' + d.sdk + '</span>');
+    el.innerHTML = L.join('<br>');
+  } catch (e) { el.textContent = 'مقدرتش أقرا الحالة: ' + String(e && (e.message || e)).slice(0, 80); }
 }
 
 document.addEventListener('change', e => {

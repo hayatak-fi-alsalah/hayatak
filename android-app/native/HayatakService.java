@@ -25,12 +25,14 @@ public class HayatakService extends Service {
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
         SharedPreferences sp = getSharedPreferences("hq", MODE_PRIVATE);
         if (intent != null && intent.hasExtra("items")) sp.edit().putString("items", intent.getStringExtra("items")).apply();
+        sp.edit().putLong("svcAlive", System.currentTimeMillis()).apply();
         update();
         return START_STICKY;
     }
 
     private void update() {
         h.removeCallbacks(tick);
+        getSharedPreferences("hq", MODE_PRIVATE).edit().putLong("svcAlive", System.currentTimeMillis()).apply();
         String name = "الصلاة القادمة", clock = ""; long when = 0, nextT = 0;
         try {
             JSONArray a = new JSONArray(getSharedPreferences("hq", MODE_PRIVATE).getString("items", "[]"));
