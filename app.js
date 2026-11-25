@@ -186,6 +186,10 @@ const IC = {
   beads: SV('<circle cx="12" cy="4" r="1.6"/><circle cx="17" cy="7" r="1.6"/><circle cx="18.5" cy="12.5" r="1.6"/><circle cx="16" cy="18" r="1.6"/><circle cx="10" cy="19.5" r="1.6"/><circle cx="5.5" cy="15.5" r="1.6"/><circle cx="5.5" cy="9" r="1.6"/>'),
   gear: SV('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'),
   spk: SV('<path d="M3 9.2v5.6h3.6l4.9 4.2V5L6.6 9.2z" fill="currentColor" stroke="none"/><path d="M14.6 8.6a4.6 4.6 0 0 1 0 6.8" stroke-width="2.2"/><path d="M17.4 5.8a8.6 8.6 0 0 1 0 12.4" stroke-width="2.2"/>'),
+  next: SV('<path d="m14.5 6-6 6 6 6"/>'), prev: SV('<path d="m9.5 6 6 6-6 6"/>'),
+  play: SV('<path d="M8 5.5v13l11-6.5z" fill="currentColor"/>'), pause: SV('<path d="M8 5v14M16 5v14" stroke-width="3"/>'),
+  dl: SV('<path d="M12 4v11m-4.5-4.2L12 15.3l4.5-4.5M5 19.5h14"/>'), list: SV('<path d="M8 6.5h12M8 12h12M8 17.5h12M4 6.5h.01M4 12h.01M4 17.5h.01" stroke-width="2.4"/>'),
+  star: SV('<path d="m12 3.5 2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 17l-5.2 2.7 1-5.9L3.5 9.7l5.9-.8z"/>'), more: SV('<path d="M5 12h.01M12 12h.01M19 12h.01" stroke-width="3"/>'),
   nav: SV('<path d="m3 11 18-8-8 18-2-8z" fill="currentColor"/>', 18)
 };
 /* ---------- views ---------- */
@@ -272,7 +276,7 @@ V.quran = async () => {
 function mushafPage(q, n) {
   const p = q.pages[n - 1]; let out = '';
   p.forEach(([s, a, t]) => {
-    if (a === 1) { out += `<div class="sf"><b>سورة ${q.surahs[s - 1].name}</b></div>`; if (s !== 1 && s !== 9) out += '<div class="bsm">بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</div>'; }
+    if (a === 1) { out += `<div class="sf"><i></i><b>سورة ${q.surahs[s - 1].name}</b><i></i></div>`; if (s !== 1 && s !== 9) out += '<div class="bsm">بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</div>'; }
     out += `${t} <span class="vn">${num(a)}</span> `;
   });
   return out;
@@ -280,12 +284,12 @@ function mushafPage(q, n) {
 const AYB = 'https://cdn.islamic.network/quran/audio/64/ar.alafasy/';
 let qpA = null, qpOn = false, qAuto = false;
 function pageAyahs(q, n) { const pre = []; let c = 0; q.surahs.forEach(s => { pre[s.n] = c; c += s.ayahs; }); return q.pages[n - 1].map(([s, a]) => pre[s] + a); }
-function stopQ() { qpOn = false; try { if (qpA) { qpA.pause(); qpA = null; } } catch (e) {} const b = $('#qplay'); if (b) b.textContent = '▶'; }
+function stopQ() { qpOn = false; try { if (qpA) { qpA.pause(); qpA = null; } } catch (e) {} const b = $('#qplay'); if (b) b.innerHTML = IC.play; }
 async function playPage(n) {
-  const q = await loadQu(); stopAud(); stopAdhan(); stopQ(); qpOn = true; const list = pageAyahs(q, n); let i = 0; const b = $('#qplay'); if (b) b.textContent = '⏸';
+  const q = await loadQu(); stopAud(); stopAdhan(); stopQ(); qpOn = true; const list = pageAyahs(q, n); let i = 0; const b = $('#qplay'); if (b) b.innerHTML = IC.pause;
   const next = async () => {
     if (!qpOn) return;
-    if (i >= list.length) { qpOn = false; if (b) b.textContent = '▶'; if (n < 604) { qAuto = true; location.hash = '#/quran/p/' + (n + 1); } return; }
+    if (i >= list.length) { qpOn = false; if (b) b.innerHTML = IC.play; if (n < 604) { qAuto = true; location.hash = '#/quran/p/' + (n + 1); } return; }
     try { qpA = new Audio(await cachedUrl(AYB + list[i] + '.mp3', 'hq-quran')); i++; qpA.onended = next; qpA.onerror = () => { stopQ(); toast('الصوت محتاج إنترنت أو حمّله الأول'); }; await qpA.play(); } catch (e) { stopQ(); toast('اضغط تاني لتشغيل الصوت'); }
   };
   next();
@@ -297,17 +301,29 @@ async function dlPage(n) {
 }
 V.reader = async n => {
   const q = await loadQu(); n = Math.max(1, Math.min(604, +n || 1)); store.set('qlast', n); stopQ();
-  const qs = store.get('qs', 27), bm = store.get('qbm', 0);
+  const qs = store.get('qs', 26), bm = store.get('qbm', 0);
   const surah = q.surahs[q.pages[n - 1][0][0] - 1].name, juz = q.pages[n - 1][0][3];
-  const wirdp = store.get('wirdp', { d: iso(), n: 0 });
   if (qAuto) { qAuto = false; setTimeout(() => playPage(n), 400); }
   return {
-    head: `<div class="qtop"><a class="ib" href="#/quran" aria-label="رجوع">→</a><a class="qchip" href="#/quran" data-qjuz>الجزء ${num(juz)}</a><a class="qchip" href="#/quran">${surah}</a></div>`,
-    body: `<div class="qpage" style="--qs:${qs}px">${mushafPage(q, n)}</div>
-    <div class="qctl"><a class="qb" href="#/quran/p/${Math.min(604, n + 1)}" aria-label="التالية">›</a><button class="qb" id="qplay" data-qplay="${n}" aria-label="استماع">▶</button><button class="qb" data-qdl="${n}" aria-label="تحميل الصوت">⬇</button><a class="qb" href="#/quran" aria-label="الفهرس">☰</a><button class="qb${bm === n ? ' on' : ''}" data-qbm="${n}" aria-label="مكان الوقوف">${bm === n ? '★' : '☆'}</button><span class="qn">${num(n)}</span><a class="qb" href="#/quran/p/${Math.max(1, n - 1)}" aria-label="السابقة">‹</a></div>
-    <div class="center" style="margin-top:12px"><button class="chip" data-qs="-2">أ-</button> <button class="chip" data-qs="2">أ+</button> <button class="chip" data-wdone="${n}">✓ قرأت الصفحة (ورد اليوم)</button></div>`
+    head: `<div class="qtop"><a class="ib qback" href="#/quran" aria-label="رجوع">→</a><a class="qchip" href="#/quran" data-qjuz>الجزء ${num(juz)}</a><a class="qchip" href="#/quran">${surah}</a></div>`,
+    body: `<div class="qpage" data-n="${n}" data-cap="${qs}">${mushafPage(q, n)}</div>
+    <div class="qmore" id="qmore" hidden><button class="chip" data-qs="-2">أ-</button><button class="chip" data-qs="2">أ+</button><button class="chip" data-wdone="${n}">✓ قرأت الصفحة (ورد اليوم)</button></div>
+    <div class="qctl"><a class="qb" href="#/quran/p/${Math.min(604, n + 1)}" aria-label="التالية">${IC.next}</a><button class="qb" id="qplay" data-qplay="${n}" aria-label="استماع">${IC.play}</button><button class="qb" data-qdl="${n}" aria-label="تحميل الصوت">${IC.dl}</button><a class="qb" href="#/quran" aria-label="الفهرس">${IC.list}</a><button class="qb${bm === n ? ' on' : ''}" id="qstar" data-qbm="${n}" aria-label="مكان الوقوف">${IC.star}</button><button class="qb" data-qmore aria-label="المزيد">${IC.more}</button><span class="qn">${num(n)}</span><a class="qb" href="#/quran/p/${Math.max(1, n - 1)}" aria-label="السابقة">${IC.prev}</a></div>`
   };
 };
+const qFit = {};
+function fitQ() {
+  const el = $('.qpage'); if (!el) return;
+  const n = el.dataset.n, cap = +el.dataset.cap || 26, key = n + '|' + cap + '|' + el.clientWidth + '|' + el.clientHeight;
+  if (qFit[key]) { el.style.fontSize = qFit[key] + 'px'; return; }
+  let lo = 12, hi = Math.min(cap, 34);
+  while (hi - lo > 0.5) { const mid = (lo + hi) / 2; el.style.fontSize = mid + 'px'; if (el.scrollHeight <= el.clientHeight + 1) lo = mid; else hi = mid; }
+  el.style.fontSize = lo + 'px'; qFit[key] = lo;
+}
+let qSw = null;
+document.addEventListener('touchstart', e => { qSw = $('.qpage') && e.target.closest('.qpage') ? [e.touches[0].clientX, e.touches[0].clientY] : null; }, { passive: true });
+document.addEventListener('touchend', e => { if (!qSw) return; const dx = e.changedTouches[0].clientX - qSw[0], dy = e.changedTouches[0].clientY - qSw[1]; qSw = null; if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 2) { const n = +$('.qpage').dataset.n; location.hash = '#/quran/p/' + (dx < 0 ? Math.min(604, n + 1) : Math.max(1, n - 1)); } }, { passive: true });
+window.addEventListener('resize', () => { if ($('.qpage')) fitQ(); });
 V.surah = async n => { const q = await loadQu(); const i = q.pages.findIndex(p => p.some(a => a[0] === +n && a[1] === 1)); return V.reader(i + 1); };
 V.marks = async () => {
   const marks = store.get('marks', []);
@@ -460,20 +476,22 @@ async function render() {
   if (!v || typeof v.body !== 'string') v = { head: hdr('حياتك في الصلاة'), body: '' };
   if (!(r === 'adhkar' && h[1] === 'c')) stopAud();
   document.body.classList.toggle('home', r === 'prayers' || r === '');
-  const old = $('#top'); if (old) old.remove();
+  document.body.classList.toggle('reading', r === 'quran' && h[1] === 'p');
+  document.querySelectorAll('#top,.qtop').forEach(x => x.remove());
   $('#view').insertAdjacentHTML('beforebegin', v.head);
   $('#view').innerHTML = v.body + '<footer class="rights">الحقوق المحفوظة لـ محمد مجدي ♥</footer>';
   const top = ['prayers', 'quran', 'adhkar', 'alarms', 'track'].includes(r) ? r : (r === 'city' || r === 'settings' ? 'prayers' : r === 'tasbih' || r === 'qibla' ? 'adhkar' : r);
   $('#nav').innerHTML = NAV.map(([k, e, n]) => `<a href="#/${k}" class="${top === k ? 'on' : ''}"><span class="i">${e}</span>${n}</a>`).join('');
   if (location.hash !== lastH && !(h[1] === 'p')) window.scrollTo(0, 0); lastH = location.hash;
   if (r === 'tasbih') tasInit();
+  if ($('.qpage')) { fitQ(); if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitQ); }
   if (r === 'settings' && navigator.permissions) navigator.permissions.query({ name: 'geolocation' }).then(p => { const el = $('#pm-loc'); if (el) el.textContent = ({ granted: 'مسموح ✓', denied: 'مرفوض', prompt: 'لسه' })[p.state] || p.state; }).catch(() => {});
 }
 window.addEventListener('hashchange', () => { const hh = (location.hash || '#/prayers').slice(2).split('/')[0]; const tp = ['prayers', 'quran', 'adhkar', 'alarms', 'track'].includes(hh) ? hh : (hh === 'city' || hh === 'settings' ? 'prayers' : hh === 'tasbih' || hh === 'qibla' ? 'adhkar' : hh); document.querySelectorAll('#nav a').forEach(x => x.classList.toggle('on', x.getAttribute('href') === '#/' + tp)); render(); });
 
 /* ---------- events ---------- */
 document.addEventListener('click', async e => {
-  const t = e.target.closest('[data-chk],[data-snd],[data-city],[data-geo],[data-dh],[data-dreset],[data-qtab],[data-mark],[data-qs],[data-wdone],[data-ppd],[data-tday],[data-tchk],[data-alarm],[data-premin],[data-iqmin],[data-iqd],[data-qset],[data-qjuz],[data-qplay],[data-qdl],[data-qbm],[data-dlv],[data-dla],[data-aud],[data-nat],[data-qa],[data-arate],[data-off],[data-school],[data-sprev],[data-asound],[data-aprev],[data-loc],[data-retry],[data-sh],[data-shclose],[data-testalarm],[data-tasnav],[data-tast],[data-tasreset],[data-compass],[data-share],[data-install],[data-suhoor],[data-suhmin],[data-method]');
+  const t = e.target.closest('[data-chk],[data-snd],[data-city],[data-geo],[data-dh],[data-dreset],[data-qtab],[data-mark],[data-qs],[data-wdone],[data-ppd],[data-tday],[data-tchk],[data-alarm],[data-premin],[data-iqmin],[data-iqd],[data-qset],[data-qjuz],[data-qmore],[data-qplay],[data-qdl],[data-qbm],[data-dlv],[data-dla],[data-aud],[data-nat],[data-qa],[data-arate],[data-off],[data-school],[data-sprev],[data-asound],[data-aprev],[data-loc],[data-retry],[data-sh],[data-shclose],[data-testalarm],[data-tasnav],[data-tast],[data-tasreset],[data-compass],[data-share],[data-install],[data-suhoor],[data-suhmin],[data-method]');
   if (Date.now() - lpAt < 700 && e.target.closest('[data-chk],[data-tchk]')) { return; }
   if (!t) return; const d = t.dataset;
   if (d.retry !== undefined) { if (/^#\/prayers/.test(location.hash) || !location.hash) refreshTimes(); else render(); return; }
@@ -491,7 +509,7 @@ document.addEventListener('click', async e => {
   else if (d.qtab) { store.set('qtab', d.qtab); render(); }
   else if (d.mark) { const m = store.get('marks', []), n = +d.mark, i = m.indexOf(n); i < 0 ? m.push(n) : m.splice(i, 1); store.set('marks', m); render(); }
   else if (d.qs) { store.set('qs', Math.max(18, Math.min(44, store.get('qs', 27) + +d.qs))); render(); }
-  else if (d.wdone) { const n = +d.wdone, p = store.get('wirdp', { d: iso(), n: 0 }); if (p.d !== iso()) { p.d = iso(); p.n = 0; } p.n++; store.set('wirdp', p); { const wd = store.get('wird', { ppd: 5 }); if (p.n >= wd.ppd) { const tt = trk(), kk = iso(); tt[kk] = tt[kk] || {}; tt[kk].w = 1; setTrk(tt); } } store.set('wirdpos', Math.min(604, n + 1)); toast('تم تسجيل الصفحة ✓'); render(); }
+  else if (d.wdone) { const n = +d.wdone, p = store.get('wirdp', { d: iso(), n: 0 }); if (p.d !== iso()) { p.d = iso(); p.n = 0; } p.n++; store.set('wirdp', p); { const wd = store.get('wird', { ppd: 5 }); if (p.n >= wd.ppd) { const tt = trk(), kk = iso(); tt[kk] = tt[kk] || {}; tt[kk].w = 1; setTrk(tt); } } store.set('wirdpos', Math.min(604, n + 1)); toast('تم تسجيل الصفحة ✓'); const mm = $('#qmore'); if (mm) mm.hidden = true; else render(); }
   else if (d.ppd) { const w = store.get('wird', { ppd: 5 }); w.ppd = +d.ppd; store.set('wird', w); render(); }
   else if (d.tday) { store.set('tday', Math.min(0, store.get('tday', 0) + +d.tday)); render(); }
   else if (d.tchk) { const a = trk(), dt = new Date(); dt.setDate(dt.getDate() + store.get('tday', 0)); const k = iso(dt); a[k] = a[k] || {}; if (/^n/.test(d.tchk)) a[k][d.tchk] = !a[k][d.tchk]; else togP(a[k], d.tchk); setTrk(a); buzz(); render(); }
@@ -500,9 +518,10 @@ document.addEventListener('click', async e => {
   else if (d.iqd) { const [k, dv] = d.iqd.split(':'), o = store.get('iqg', {}); o[k] = Math.max(0, Math.min(60, iqGap(k) + +dv)); store.set('iqg', o); render(); }
   else if (d.qset) { const r = getRem(); const m = +d.qset; r.q.t = String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); r.q.on = true; store.set('rem', r); render(); }
   else if (d.qjuz !== undefined) { store.set('qtab', 'j'); }
+  else if (d.qmore !== undefined) { const m = $('#qmore'); if (m) m.hidden = !m.hidden; }
   else if (d.qplay) { if (qpOn) stopQ(); else playPage(+d.qplay); }
   else if (d.qdl) { dlPage(+d.qdl); }
-  else if (d.qbm) { store.set('qbm', +d.qbm); toast('اتحفظ مكان وقوفك ★'); render(); }
+  else if (d.qbm) { store.set('qbm', +d.qbm); toast('اتحفظ مكان وقوفك ★'); const b = $('#qstar'); if (b) b.classList.add('on'); }
   else if (d.dlv) { dlVoice(d.dlv); }
   else if (d.dla) { dlAudio(d.dla); }
   else if (d.iqmin) { const a = store.get('alarm', {}); a.iqMin = +d.iqmin; store.set('alarm', a); render(); }
@@ -650,6 +669,7 @@ if ('serviceWorker' in navigator && !NATIVE) {
 if (!location.hash) location.hash = '#/prayers';
 if (place && place.id === 'gps') { if (place.name === 'موقعي') place.name = 'موقعك الحالي'; nameGps(); }
 render(); refreshTimes();
+setTimeout(() => { try { loadQu().catch(() => {}); } catch (e) {} }, 4000);
 
 let errT = 0;
 window.addEventListener('error', () => { if (Date.now() - errT > 5000) { errT = Date.now(); } });

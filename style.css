@@ -229,3 +229,25 @@ nav a{font-size:10.5px}nav a .i .sv{width:22px;height:22px}
 .mosque{margin:-26px 0 8px}.mosque .mb{width:68px;height:68px}.mosque .mb .sv{width:32px;height:32px}
 .card h3{font-size:14px}.thirds div{font-size:10.5px}.thirds b{font-size:12px}
 nav a{font-size:9.5px;padding:5px 0}nav a .i{height:22px}nav a .i .sv{width:20px;height:20px}
+
+/* mushaf reader v2 */
+body.reading nav#nav{display:none}
+body.reading main{padding:2px 10px 0;max-width:640px}
+body.reading footer.rights{display:none}
+.qtop{display:flex;align-items:center;gap:8px;padding:calc(8px + env(safe-area-inset-top)) 12px 6px;max-width:640px;margin:0 auto}
+.qtop .qback{order:3;width:38px;height:38px;margin-inline-start:auto;background:#d8d6de;color:#111}
+.qtop .qchip{font-size:13px;padding:6px 14px}.qtop .qchip:last-child{margin-inline-start:0}.qtop .qchip:first-of-type{order:2}
+.qpage{height:calc(100dvh - 58px - env(safe-area-inset-top) - 80px - env(safe-area-inset-bottom));min-height:300px;overflow:hidden;background:#171717;border-radius:6px;padding:6px 8px;line-height:1.95;text-align:justify;text-align-last:center;text-justify:inter-word;font-family:AmiriQuran,serif;color:#f3efe4;contain:layout paint;overflow-wrap:normal}
+.qpage .sf{position:relative;display:flex;align-items:center;justify-content:center;height:3.1em;margin:2px 0 6px;border:1.5px solid #e4dfd0;outline:1.5px solid #e4dfd0;outline-offset:2px;border-radius:3px;font-size:.82em;line-height:1;text-align-last:center;
+background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14'%3E%3Cpath d='M7 1 13 7 7 13 1 7z' fill='none' stroke='%23e4dfd0' stroke-width='1' opacity='.55'/%3E%3Ccircle cx='7' cy='7' r='1.2' fill='%23e4dfd0' opacity='.6'/%3E%3C/svg%3E") center/14px 14px #171717}
+.qpage .sf b{position:relative;z-index:1;display:block;font-weight:400;background:#171717;border:1.5px solid #e4dfd0;border-radius:40px;padding:.35em 1.8em;margin:0;font-size:1.05em;white-space:nowrap}
+.qpage .sf i{position:relative;z-index:1;width:2.1em;height:2.1em;margin:0 .6em;border:1.5px solid #e4dfd0;border-radius:50%;background:#171717;box-shadow:0 0 0 .3em #171717,0 0 0 calc(.3em + 1.5px) #e4dfd0;flex:none}
+.qpage .sf::before,.qpage .sf::after{display:none}
+.qpage .bsm{text-align:center;text-align-last:center;margin:0 0 2px}
+.qctl{position:fixed;left:0;right:0;bottom:calc(10px + env(safe-area-inset-bottom));margin:0 auto;max-width:620px;padding:0 10px;display:flex;align-items:center;justify-content:center;gap:6px;z-index:10;transform:translateZ(0)}
+.qb{width:40px;height:40px;background:#33313c;color:var(--ink)}.qb .sv{width:19px;height:19px}.qb.on{color:var(--gold)}.qb.on .sv{fill:var(--gold)}
+.qn{min-width:34px;height:34px;font-size:13px;padding:0 6px}
+.qmore{position:fixed;left:12px;right:12px;bottom:calc(64px + env(safe-area-inset-bottom));max-width:600px;margin:0 auto;z-index:11;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;background:#2a2833;border:1px solid #3b384d;border-radius:20px;padding:10px}
+.qmore[hidden]{display:none}
+.srow,.rec{content-visibility:auto;contain-intrinsic-size:auto 64px}
+.qb,.qchip,.ib{transition:none}
