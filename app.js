@@ -458,7 +458,7 @@ document.addEventListener('click', async e => {
   else if (d.off) { const [k, dv] = d.off.split(':'), o = store.get('offs', {}); o[k] = Math.max(-30, Math.min(30, (o[k] || 0) + +dv)); store.set('offs', o); refreshTimes(); }
   else if (d.asound) { const a = store.get('alarm', {}); a.sound = d.asound; store.set('alarm', a); render(); playSound(d.asound); }
   else if (d.aprev !== undefined) { playSound(store.get('alarm', {}).sound || 'aaqib'); }
-  else if (d.perm !== undefined) { if ('Notification' in window) { await Notification.requestPermission(); render(); } }
+  else if (d.perm !== undefined) { if (NATIVE) { await nativeAsk(); toast('تم، التنبيهات هتشتغل والتطبيق مقفول'); } else if ('Notification' in window) { await Notification.requestPermission(); render(); } }
   else if (d.testalarm !== undefined) { notify('تجربة التنبيه', 'التنبيهات شغالة ✓'); }
   else if (d.tasnav) { const s = store.get('tas', { i: 0, c: {}, t: 33 }); s.i = (s.i + +d.tasnav + 8) % 8; store.set('tas', s); render(); }
   else if (d.tast !== undefined) { const s = store.get('tas', { i: 0, c: {}, t: 33 }); s.t = +d.tast; store.set('tas', s); render(); }
@@ -565,13 +565,14 @@ function checkAlarms() {
 let tick = 0;
 setInterval(() => {
   try { const el = $('#cd'); if (day && el) { const np = nextPrayer(); el.textContent = fmtHMS(np.left); const bar = $('#cdbar'); if (bar) bar.style.width = Math.max(0, Math.min(100, 100 - np.left / np.span * 100)) + '%'; if ((np.left === 0 || np.left > 86300 || day.d && day.d !== iso()) && Date.now() - lastRT > 60000) refreshTimes(); }
-  } catch (e) {} if (++tick % 5 === 0) { try { checkAlarms(); } catch (e) {} }
+  } catch (e) {} if (++tick % 5 === 0 && !NATIVE) { try { checkAlarms(); } catch (e) {} }
 }, 1000);
 
 /* ---------- boot ---------- */
 let deferred = null;
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; const b = $('#inst'); if (b) b.classList.remove('hide'); });
-if ('serviceWorker' in navigator) {
+const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+if ('serviceWorker' in navigator && !NATIVE) {
   const had = !!navigator.serviceWorker.controller; let upd = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) upd = true; });
   window.addEventListener('hashchange', () => { if (upd && !$('#sheet')) location.reload(); });
@@ -587,3 +588,45 @@ render(); refreshTimes();
 let errT = 0;
 window.addEventListener('error', () => { if (Date.now() - errT > 5000) { errT = Date.now(); } });
 window.addEventListener('unhandledrejection', ev => { ev.preventDefault(); });
+
+/* ---------- native Android: closed-app alarms ---------- */
+const LN = () => window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications;
+const NVOICES = ['aaqib', 'sabah', 'makkah'];
+async function nativeAsk() {
+  const ln = LN(); if (!ln) return;
+  try { await ln.requestPermissions(); } catch (e) {}
+  try { const r = await ln.checkExactNotificationSetting(); if (r && r.exact_alarm !== 'granted') await ln.changeExactNotificationSetting(); } catch (e) {}
+  nativeSig = ''; nativeSync();
+}
+function tzOff(ts, tz) { try { const p = new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' }).formatToParts(new Date(ts)); const g = t => +p.find(x => x.type === t).value; return Date.UTC(g('year'), g('month') - 1, g('day'), g('hour'), g('minute'), g('second')) - Math.floor(ts / 1000) * 1000; } catch (e) { return -new Date(ts).getTimezoneOffset() * 60000; } }
+function zonedEpoch(dt, hh, mm, tz) { const guess = Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate(), hh, mm); let t = guess - tzOff(guess, tz); t = guess - tzOff(t, tz); return t; }
+let nativeSig = '', nativeBusy = false;
+async function nativeSync() {
+  const ln = LN(); if (!NATIVE || !ln || nativeBusy || !day || !ready) return;
+  const a = store.get('alarm', { pre: true, preMin: 15, at: true, iqama: true, iqMin: 10, audio: true, kahf: true }), snd = store.get('snd', {});
+  const sig = JSON.stringify([a, snd, store.get('offs', {}), store.get('method', 0), store.get('school', 0), place.lat, place.lon, iso()]);
+  if (sig === nativeSig) return; nativeBusy = true;
+  try {
+    const perm = await ln.checkPermissions(); if (!perm || perm.display !== 'granted') { nativeBusy = false; return; }
+    const voice = NVOICES.includes(a.sound) ? a.sound : 'aaqib';
+    for (const v of NVOICES) { try { await ln.createChannel({ id: 'adhan_' + v, name: 'الأذان', description: 'تنبيه وقت الأذان', importance: 5, sound: 'adhan_' + v + '.mp3', vibration: true, visibility: 1 }); } catch (e) {} }
+    try { await ln.createChannel({ id: 'reminder', name: 'التذكيرات', description: 'قبل الصلاة والإقامة والأذكار', importance: 4, vibration: true, visibility: 1 }); } catch (e) {}
+    try { await ln.createChannel({ id: 'adhan_quiet', name: 'الأذان بدون صوت طويل', importance: 4, vibration: true }); } catch (e) {}
+    const days = []; for (let i = 0; i < 7; i++) { try { days.push([new Date(Date.now() + i * 864e5), await loadDay(new Date(Date.now() + i * 864e5))]); } catch (e) { if (i < 2) { nativeBusy = false; return; } break; } }
+    const out = [], now = Date.now(); let n = 0;
+    days.forEach(([dt, dd], di) => {
+      PR.forEach(([k, name], pi) => {
+        if (snd[k] === false) return; const m = String(dd.t[k]).match(/(\d+):(\d+)/); if (!m) return; const t = zonedEpoch(dt, +m[1], +m[2], dd.tz);
+        const base = (di * 10 + pi) * 10;
+        const ev = [['pre', t - a.preMin * 60000, 'بعد ' + num(a.preMin) + ' دقيقة صلاة ' + name, 'reminder', 1], ['at', t, 'حان الآن موعد أذان ' + name, a.audio === false ? 'adhan_quiet' : 'adhan_' + voice, 2], ['iqama', t + a.iqMin * 60000, 'إقامة صلاة ' + name, 'reminder', 3]];
+        ev.forEach(([w, at, body, ch, off]) => { if (a[w] && at > now + 5000) out.push({ id: 100 + base + off, title: 'حياتك في الصلاة', body, channelId: ch, schedule: { at: new Date(at), allowWhileIdle: true }, smallIcon: 'ic_stat_hayatak' }); });
+      });
+      if (dt.getDay() === 5 && a.kahf !== false) { const at = zonedEpoch(dt, 9, 0, dd.tz); if (at > now) out.push({ id: 90000 + di, title: 'يوم الجمعة', body: 'لا تنسَ قراءة سورة الكهف والإكثار من الصلاة على النبي ﷺ', channelId: 'reminder', schedule: { at: new Date(at), allowWhileIdle: true } }); }
+    });
+    const pend = await ln.getPending(); if (pend && pend.notifications && pend.notifications.length) await ln.cancel({ notifications: pend.notifications.map(x => ({ id: x.id })) });
+    if (out.length) await ln.schedule({ notifications: out });
+    nativeSig = sig; store.set('nativeCount', out.length);
+  } catch (e) {}
+  nativeBusy = false;
+}
+if (NATIVE) { setTimeout(() => { nativeAsk(); }, 2500); setInterval(nativeSync, 20000); }

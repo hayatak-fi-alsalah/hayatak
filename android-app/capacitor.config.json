@@ -1,0 +1,9 @@
+{
+  "appId": "com.hayatak.salah",
+  "appName": "حياتك في الصلاة",
+  "webDir": "www",
+  "backgroundColor": "#14121c",
+  "plugins": {
+    "LocalNotifications": { "smallIcon": "ic_stat_hayatak", "iconColor": "#7c5cff" }
+  }
+}
