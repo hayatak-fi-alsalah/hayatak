@@ -83,12 +83,28 @@ function thirds() {
 }
 
 /* ---------- tracking ---------- */
+function togP(e, k) { if (e[k] || e[k + 'x']) { e[k] = false; delete e[k + 'x']; delete e[k + 'm']; } else e[k] = true; }
+let lpT = null, lpAt = 0;
+function sheet(date, k) {
+  const t = trk(), e = t[date] = t[date] || {}; const n = PR.find(x => x[0] === k)[1];
+  const st = e[k + 'x'] ? 'x' : e[k] === 'late' ? 'late' : e[k] ? 'on' : '', m = e[k + 'm'] || '';
+  const o = (g, v, l, cur) => `<button class="chip${cur === v ? ' on' : ''}" data-sh="${g}:${v}" data-sd="${date}" data-sk="${k}">${l}</button>`;
+  let el = $('#sheet'); if (!el) { el = document.createElement('div'); el.id = 'sheet'; document.body.appendChild(el); }
+  el.innerHTML = `<div class="shbg" data-shclose></div><div class="shp"><h3>${n}</h3><div class="muted">الوقت</div><div class="chips">${o('w', 'on', 'في الوقت', st)}${o('w', 'late', 'متأخرة', st)}${o('w', 'x', 'فائتة', st)}</div><div class="muted">طريقة الصلاة</div><div class="chips">${o('m', 'a', 'فردي', m)}${o('m', 'c', 'جماعة', m)}${o('m', 'm', 'في المسجد', m)}</div><div class="muted" style="margin:6px 0 12px">في المسجد +٥ نقاط، جماعة +٣، متأخرة ٥ بدل ١٠، الفائتة بصفر.</div><div style="display:flex;gap:8px"><button class="btn g" data-sh="clr:" data-sd="${date}" data-sk="${k}" style="flex:1">مسح</button><button class="btn" data-shclose style="flex:1">تم</button></div></div>`;
+}
+document.addEventListener('pointerdown', ev => { const b = ev.target.closest('[data-chk],[data-tchk]'); if (!b) return; const k = b.dataset.chk || b.dataset.tchk; if (/^n/.test(k)) return; clearTimeout(lpT); lpT = setTimeout(() => { lpAt = Date.now(); buzz(40); let date = iso(); if (b.dataset.tchk) { const d = new Date(); d.setDate(d.getDate() + store.get('tday', 0)); date = iso(d); } sheet(date, k); }, 500); });
+['pointerup', 'pointercancel', 'pointermove', 'scroll'].forEach(x => document.addEventListener(x, () => clearTimeout(lpT), { passive: true }));
+document.addEventListener('contextmenu', ev => { if (ev.target.closest('[data-chk],[data-tchk]')) ev.preventDefault(); });
 const trk = () => store.get('trk', {});
 function setTrk(t) { store.set('trk', t); }
 const NAFN = () => NAF.reduce((a, x) => a + x[2], 0);
 function dayTier(e) { e = e || {}; if (!PR.every(([k]) => e[k])) return 0; const nf = NAF.every(([k]) => e['n' + k]); return nf && e.w ? 3 : nf ? 2 : 1; }
 const TIERS = [null, ['🥉', 'برونزي', 20], ['🥈', 'فضي', 50], ['🥇', 'ذهبي', 100]];
-function dayXp(e) { let x = 0; PR.forEach(([k]) => { if (e[k]) x += 10; }); NAF.forEach(([k]) => { if (e['n' + k]) x += 3; }); if (e.w) x += 10; const t = dayTier(e); if (t) x += TIERS[t][2]; return x; }
+const prayPts = (e, k) => !e[k] ? 0 : (e[k] === 'late' ? 5 : 10) + (e[k + 'm'] === 'm' ? 5 : e[k + 'm'] === 'c' ? 3 : 0);
+const chkIn = (e, k) => e[k + 'x'] ? '✕' : e[k] === 'late' ? '⏱' : e[k] ? '✓' : '';
+const chkCls = (e, k) => e[k + 'x'] ? ' miss' : e[k] === 'late' ? ' on late' : e[k] ? ' on' : '';
+const chkTag = (e, k) => { const a = []; if (e[k + 'x']) a.push('فائتة'); else if (e[k] === 'late') a.push('متأخرة'); const m = { a: 'فردي', c: 'جماعة', m: 'مسجد' }[e[k + 'm']]; if (m && e[k]) a.push(m); return a.length ? `<div class="tag">${a.join(' · ')}</div>` : ''; };
+function dayXp(e) { let x = 0; PR.forEach(([k]) => { x += prayPts(e, k); }); NAF.forEach(([k]) => { if (e['n' + k]) x += 3; }); if (e.w) x += 10; const t = dayTier(e); if (t) x += TIERS[t][2]; return x; }
 function xpOf(t) { let x = 0; for (const d in t) x += dayXp(t[d]); return x; }
 function streaks(t) {
   const full = d => { const e = t[d] || {}; return PR.every(([k]) => e[k]); };
@@ -138,11 +154,11 @@ V.prayers = () => {
   const pct = Math.max(0, Math.min(100, 100 - (np.left / np.span) * 100));
   const g = new Date();
   const fast = (day.hd >= 13 && day.hd <= 15) ? 'الأيام البيض، صيام مستحب' : (g.getDay() === 1 || g.getDay() === 4) ? (g.getDay() === 1 ? 'صيام الاثنين' : 'صيام الخميس') : '';
-  const rows = PR.map(([k, n]) => `<div class="prow${np.k === k ? ' now' : ''}"><button class="chk${t[k] ? ' on' : ''}" data-chk="${k}" aria-label="صليت ${n}">${t[k] ? '✓' : ''}</button><div class="n">${n}</div><div class="t">${to12(day.t[k])}</div><button class="snd${snd[k] === false ? ' off' : ''}" data-snd="${k}" aria-label="صوت الأذان">🔊</button></div>`).join('');
+  const rows = PR.map(([k, n]) => `<div class="prow${np.k === k ? ' now' : ''}"><button class="chk${chkCls(t, k)}" data-chk="${k}" aria-label="صليت ${n}">${chkIn(t, k)}</button><div class="n">${n}${chkTag(t, k)}</div><div class="t">${to12(day.t[k])}</div><button class="snd${snd[k] === false ? ' off' : ''}" data-snd="${k}" aria-label="صوت الأذان">🔊</button></div>`).join('');
   return {
     head: hdr('', ico('#/settings', '⚙️', 'الإعدادات') + ico('#/tasbih', '📿', 'تسبيح') + ico('#/qibla', '🧭', 'القبلة')),
     body: `<div class="hero"><h2>${np.n} خلال</h2><div class="cd" id="cd">${fmtHMS(np.left)}</div><div class="bar"><i id="cdbar" style="width:${pct}%"></i></div>
-      <div class="sub">📍 ${place.name}</div><div class="sub">${day.hijri} · ${new Intl.DateTimeFormat('ar-EG', { day: 'numeric', month: 'long', year: 'numeric' }).format(g)}</div>
+      <div class="sub">📍 ${place.name}</div><a class="sub qchip" href="#/qibla">🕋 القبلة ${num(Math.round(qiblaB()))}° ${QN[Math.round(qiblaB() / 45) % 8]} · افتح البوصلة ›</a><div class="sub">${day.hijri} · ${new Intl.DateTimeFormat('ar-EG', { day: 'numeric', month: 'long', year: 'numeric' }).format(g)}</div>
       ${fast ? `<span class="pill">🌙 ${fast}</span>` : ''}<span class="pill s">تتبع الصلاة مفعّل ✓</span></div>
       <div class="card" style="padding:6px 10px">${rows}</div>
       <div class="card"><h3>الشروق</h3><div class="sub">تنتهي صلاة الفجر عند ${to12(day.t.Sunrise)}</div></div>${thirds()}
@@ -265,11 +281,11 @@ V.track = () => {
     body: `<div class="gems">${GEMS.map((g, i) => `<span class="${i === (lvl - 1) % GEMS.length ? 'on' : ''}">${g}</span>`).join('')}</div>
     <div class="prog" style="margin:0 0 16px"><i style="width:${prog}%"></i></div>
     <div class="card"><div class="days"><button class="ib" data-tday="-1" aria-label="اليوم السابق">›</button><b>${label}</b><button class="ib" data-tday="1" ${td >= 0 ? 'disabled style="opacity:.3"' : ''} aria-label="اليوم التالي">‹</button></div>
-    <div class="circ">${PR.map(([p, n]) => `<div><button class="chk${e[p] ? ' on' : ''}" data-tchk="${p}" style="width:48px;height:48px">${e[p] ? '✓' : ''}</button>${n}</div>`).join('')}</div></div>
+    <div class="circ">${PR.map(([p, n]) => `<div><button class="chk${chkCls(e, p)}" data-tchk="${p}" style="width:48px;height:48px">${chkIn(e, p)}</button>${n}${chkTag(e, p)}</div>`).join('')}</div></div>
     <div class="card"><h3>النوافل <span class="muted" style="float:left">${num(naf)} / ١٢</span></h3><div class="circ">${NAF.map(([x, n, c]) => `<div><button class="chk${e['n' + x] ? ' on' : ''}" data-tchk="n${x}" style="width:44px;height:44px;font-size:16px">${e['n' + x] ? '✓' : num(c)}</button>${n}</div>`).join('')}</div></div>
     ${calCard(t)}${badgeCard(t, st)}
     <div class="card"><h3>الهدف اليومي</h3><div class="stats"><div><b>🔥 ${num(st.cur)} يوم</b><span>السلسلة الحالية</span></div><div><b>🏅 ${num(st.best)} يوم</b><span>أطول سلسلة</span></div><div><b>⭐ ${num(xp)}</b><span>النقاط</span></div></div>
-    <div class="muted" style="margin-top:10px">كل فرض بـ ١٠ نقاط وكل نافلة بـ ٣ وإنجاز الورد بـ ١٠. كل ١٥٠ نقطة مستوى جديد.</div></div>
+    <div class="muted" style="margin-top:10px">كل فرض بـ ١٠ نقاط وكل نافلة بـ ٣ وإنجاز الورد بـ ١٠. الصلاة في المسجد +٥، جماعة +٣، متأخرة ٥ بدل ١٠، والفائتة بصفر. اضغط مطولا على أي صلاة لتحديد حالتها. كل ١٥٠ نقطة مستوى جديد.</div></div>
     <div class="card"><h3>مستوى اليوم ${dayTier(e) ? TIERS[dayTier(e)][0] + ' ' + TIERS[dayTier(e)][1] : ''}</h3>
     <div class="muted" style="line-height:2">🥉 برونزي: الصلوات الخمس كلها (+٢٠)<br>🥈 فضي: الصلوات + كل النوافل (+٥٠)<br>🥇 ذهبي: الصلوات + النوافل + ورد اليوم (+١٠٠)</div>
     <div class="muted" style="margin-top:8px">${dayTier(e) === 3 ? 'يوم كامل، ما شاء الله 🎉' : 'نقاط اليوم: ' + num(dayXp(e))}</div></div>`
@@ -319,6 +335,8 @@ V.tasbih = () => {
   };
 };
 let qibla = { heading: null };
+const qiblaB = () => { const r = Math.PI / 180, dl = (39.8262 - place.lon) * r; return ((Math.atan2(Math.sin(dl), Math.cos(place.lat * r) * Math.tan(21.4225 * r) - Math.sin(place.lat * r) * Math.cos(dl)) / r) + 360) % 360; };
+const QN = ['شمال', 'شمال شرق', 'شرق', 'جنوب شرق', 'جنوب', 'جنوب غرب', 'غرب', 'شمال غرب'];
 V.qibla = () => {
   const r = Math.PI / 180, dl = (39.8262 - place.lon) * r;
   const b = ((Math.atan2(Math.sin(dl), Math.cos(place.lat * r) * Math.tan(21.4225 * r) - Math.sin(place.lat * r) * Math.cos(dl)) / r) + 360) % 360;
@@ -341,10 +359,10 @@ V.settings = () => ({
    <div class="prm"><span>🔊 الصوت والاهتزاز<br><span class="muted">لصوت الأذان وعدّاد التسبيح. مش محتاج إذن.</span></span><b>تلقائي</b></div>
    <div class="muted" style="margin-top:8px">لو رفضت صلاحية بالغلط: من إعدادات المتصفح أو التطبيق، اختار الصلاحيات وفعّلها.</div></div>
    <div class="card"><h3>للتواصل والدعم ومزيد من التحديثات</h3><div class="list">
-   <a href="https://t.me/+201061428522" target="_blank" rel="noopener">تيليجرام<span class="m">↗</span></a>
+   <a href="https://t.me/MGSNC" target="_blank" rel="noopener">تيليجرام<span class="m">↗</span></a>
    <a href="mailto:mojshshm29@gmail.com">الإيميل: mojshshm29@gmail.com<span class="m">✉</span></a></div></div>
    <div class="card"><h3>اقتراحاتك</h3><div class="muted" style="line-height:1.9;margin-bottom:10px">عندك فكرة أو ميزة نفسك تشوفها في التطبيق؟ أو لقيت مشكلة؟ ابعتلنا على تيليجرام أو الإيميل، وكل اقتراح بنقراه ونحاول نضيفه في التحديثات الجاية.</div>
-   <a class="btn" style="display:block;text-align:center;text-decoration:none" href="https://t.me/+201061428522" target="_blank" rel="noopener">ابعت اقتراح على تيليجرام</a>
+   <a class="btn" style="display:block;text-align:center;text-decoration:none" href="https://t.me/MGSNC" target="_blank" rel="noopener">ابعت اقتراح على تيليجرام</a>
    <a class="btn g" style="display:block;text-align:center;text-decoration:none;margin-top:10px" href="mailto:mojshshm29@gmail.com?subject=%D8%A7%D9%82%D8%AA%D8%B1%D8%A7%D8%AD%20%D9%84%D8%AA%D8%B7%D8%A8%D9%8A%D9%82%20%D8%AD%D9%8A%D8%A7%D8%AA%D9%83%20%D9%81%D9%8A%20%D8%A7%D9%84%D8%B5%D9%84%D8%A7%D8%A9">ابعت اقتراح بالإيميل</a></div>
    <div class="card"><button class="btn" data-share style="width:100%">مشاركة التطبيق مع الأصحاب</button>
   <button class="btn g hide" id="inst" data-install style="width:100%;margin-top:10px">ثبّت التطبيق على الشاشة الرئيسية</button></div>`
@@ -374,9 +392,12 @@ window.addEventListener('hashchange', render);
 
 /* ---------- events ---------- */
 document.addEventListener('click', async e => {
-  const t = e.target.closest('[data-chk],[data-snd],[data-city],[data-geo],[data-dh],[data-dreset],[data-qtab],[data-mark],[data-qs],[data-wdone],[data-ppd],[data-tday],[data-tchk],[data-alarm],[data-premin],[data-iqmin],[data-perm],[data-loc],[data-testalarm],[data-tasnav],[data-tast],[data-tasreset],[data-compass],[data-share],[data-install],[data-suhoor],[data-suhmin],[data-method]');
+  const t = e.target.closest('[data-chk],[data-snd],[data-city],[data-geo],[data-dh],[data-dreset],[data-qtab],[data-mark],[data-qs],[data-wdone],[data-ppd],[data-tday],[data-tchk],[data-alarm],[data-premin],[data-iqmin],[data-perm],[data-loc],[data-sh],[data-shclose],[data-testalarm],[data-tasnav],[data-tast],[data-tasreset],[data-compass],[data-share],[data-install],[data-suhoor],[data-suhmin],[data-method]');
+  if (Date.now() - lpAt < 700) { lpAt = 0; return; }
   if (!t) return; const d = t.dataset;
-  if (d.chk) { const a = trk(), k = iso(); a[k] = a[k] || {}; a[k][d.chk] = !a[k][d.chk]; setTrk(a); buzz(); render(); }
+  if (d.shclose !== undefined) { const x = $('#sheet'); if (x) x.remove(); return; }
+  if (d.sh) { const [g, v] = d.sh.split(':'), tt = trk(), e = tt[d.sd] = tt[d.sd] || {}, k = d.sk; if (g === 'w') { if (v === 'x') { e[k] = false; e[k + 'x'] = 1; delete e[k + 'm']; } else { delete e[k + 'x']; e[k] = v === 'late' ? 'late' : true; } } else if (g === 'm') { delete e[k + 'x']; if (!e[k]) e[k] = true; e[k + 'm'] = e[k + 'm'] === v ? undefined : v; } else { e[k] = false; delete e[k + 'x']; delete e[k + 'm']; } setTrk(tt); sheet(d.sd, k); render(); return; }
+  if (d.chk) { const a = trk(), k = iso(); a[k] = a[k] || {}; togP(a[k], d.chk); setTrk(a); buzz(); render(); }
   else if (d.snd) { const s = store.get('snd', {}); s[d.snd] = s[d.snd] === false ? true : false; store.set('snd', s); render(); }
   else if (d.city) { const c = CITIES.find(x => x[0] === d.city); place = { id: c[0], name: c[1], lat: c[2], lon: c[3] }; store.set('place', place); refreshTimes(); }
   else if (d.geo !== undefined) {
@@ -391,7 +412,7 @@ document.addEventListener('click', async e => {
   else if (d.wdone) { const n = +d.wdone, p = store.get('wirdp', { d: iso(), n: 0 }); if (p.d !== iso()) { p.d = iso(); p.n = 0; } p.n++; store.set('wirdp', p); { const wd = store.get('wird', { ppd: 5 }); if (p.n >= wd.ppd) { const tt = trk(), kk = iso(); tt[kk] = tt[kk] || {}; tt[kk].w = 1; setTrk(tt); } } store.set('wirdpos', Math.min(604, n + 1)); toast('تم تسجيل الصفحة ✓'); render(); }
   else if (d.ppd) { const w = store.get('wird', { ppd: 5 }); w.ppd = +d.ppd; store.set('wird', w); render(); }
   else if (d.tday) { store.set('tday', Math.min(0, store.get('tday', 0) + +d.tday)); render(); }
-  else if (d.tchk) { const a = trk(), dt = new Date(); dt.setDate(dt.getDate() + store.get('tday', 0)); const k = iso(dt); a[k] = a[k] || {}; a[k][d.tchk] = !a[k][d.tchk]; setTrk(a); buzz(); render(); }
+  else if (d.tchk) { const a = trk(), dt = new Date(); dt.setDate(dt.getDate() + store.get('tday', 0)); const k = iso(dt); a[k] = a[k] || {}; if (/^n/.test(d.tchk)) a[k][d.tchk] = !a[k][d.tchk]; else togP(a[k], d.tchk); setTrk(a); buzz(); render(); }
   else if (d.alarm) { const a = store.get('alarm', { pre: true, preMin: 15, at: true, iqama: true, iqMin: 10, audio: true, kahf: true }); a[d.alarm] = t.checked; store.set('alarm', a); }
   else if (d.premin) { const a = store.get('alarm', {}); a.preMin = +d.premin; store.set('alarm', a); render(); }
   else if (d.iqmin) { const a = store.get('alarm', {}); a.iqMin = +d.iqmin; store.set('alarm', a); render(); }
