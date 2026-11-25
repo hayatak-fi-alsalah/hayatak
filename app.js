@@ -696,6 +696,7 @@ async function nativeSync() {
     const voice = NVOICES.includes(a.sound) ? a.sound : 'aaqib';
     for (const v of NVOICES) { try { await ln.createChannel({ id: 'adhan_' + v, name: 'الأذان', description: 'تنبيه وقت الأذان', importance: 5, sound: 'adhan_' + v + '.mp3', vibration: true, visibility: 1 }); } catch (e) {} }
     try { await ln.createChannel({ id: 'iqama_soft', name: 'الإقامة', description: 'نغمة خفيفة وقت الإقامة', importance: 4, sound: 'iqama_soft.wav', vibration: false, visibility: 1 }); } catch (e) {}
+    try { await ln.createChannel({ id: 'pre_nasheed', name: 'قبل الصلاة (إلا صلاتي)', description: 'تنبيه قبل الصلاة بنشيد إلا صلاتي', importance: 4, sound: 'pre_nasheed.mp3', vibration: true, visibility: 1 }); } catch (e) {}
     try { await ln.createChannel({ id: 'pre_soft', name: 'قبل الصلاة', description: 'تنبيه قبل الصلاة', importance: 4, sound: 'pre_soft.wav', vibration: true, visibility: 1 }); } catch (e) {}
     try { await ln.createChannel({ id: 'reminder', name: 'التذكيرات', description: 'قبل الصلاة والإقامة والأذكار', importance: 4, vibration: true, visibility: 1 }); } catch (e) {}
     try { await ln.createChannel({ id: 'adhan_quiet', name: 'الأذان بدون صوت طويل', importance: 4, vibration: true }); } catch (e) {}
@@ -705,7 +706,7 @@ async function nativeSync() {
       PR.forEach(([k, name], pi) => {
         if (snd[k] === false) return; const m = String(dd.t[k]).match(/(\d+):(\d+)/); if (!m) return; const t = zonedEpoch(dt, +m[1], +m[2], dd.tz);
         const base = (di * 10 + pi) * 10;
-        const ev = [['pre', t - a.preMin * 60000, 'بعد ' + num(a.preMin) + ' دقيقة صلاة ' + name, 'pre_soft', 1], ['at', t, 'حان الآن موعد أذان ' + name, a.audio === false ? 'adhan_quiet' : 'adhan_' + voice, 2], ['iqama', t + iqGap(k) * 60000, 'إقامة صلاة ' + name, 'iqama_soft', 3]];
+        const ev = [['pre', t - a.preMin * 60000, 'بعد ' + num(a.preMin) + ' دقيقة صلاة ' + name, 'pre_nasheed', 1], ['at', t, 'حان الآن موعد أذان ' + name, a.audio === false ? 'adhan_quiet' : 'adhan_' + voice, 2], ['iqama', t + iqGap(k) * 60000, 'إقامة صلاة ' + name, 'iqama_soft', 3]];
         ev.forEach(([w, at, body, ch, off]) => { if (a[w] && at > now + 5000) out.push({ id: 100 + base + off, title: 'حياتك في الصلاة', body, channelId: ch, schedule: { at: new Date(at), allowWhileIdle: true }, smallIcon: 'ic_stat_hayatak' }); });
       });
       { const rm = getRem(); [['m', 'أذكار الصباح', 'وقت أذكار الصباح، حصّن يومك 🌅'], ['e', 'أذكار المساء', 'وقت أذكار المساء 🌙'], ['q', 'قيام الليل', 'قم ولو بركعتين، الله ينادي عباده في الثلث الأخير']].forEach(([key, title, body], x) => { const r = rm[key]; if (!r.on) return; const [hh, mm] = r.t.split(':').map(Number); const at = zonedEpoch(dt, hh, mm, dd.tz); if (at > now + 5000) out.push({ id: 91000 + di * 10 + x, title, body, channelId: 'reminder', schedule: { at: new Date(at), allowWhileIdle: true }, smallIcon: 'ic_stat_hayatak' }); }); }

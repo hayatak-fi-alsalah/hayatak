@@ -39,7 +39,7 @@ jobs:
           g=Image.open(root+'icon-192.png').convert('RGBA').resize((96,96),Image.LANCZOS)
           w=Image.new('RGBA',g.size,(255,255,255,0)); w.putalpha(g.getchannel('A')); wh=Image.new('RGBA',g.size,(255,255,255,255)); wh.putalpha(g.getchannel('A')); wh.save('res/drawable/ic_stat_hayatak.png')
           PY
-          cp ../../../../native/iqama_soft.wav ../../../../native/pre_soft.wav res/raw/
+          cp ../../../../native/iqama_soft.wav ../../../../native/pre_soft.wav ../../../../native/pre_nasheed.mp3 res/raw/
           find res -name 'splash.png' -delete
           cp ../../../../native/res/styles.xml res/values/styles.xml
           cp ../../../../native/res/splash_bg.xml res/drawable/splash_bg.xml
