@@ -118,7 +118,7 @@ function fastChip() {
   const l = fastList(10)[0]; if (!l) return 'صيام السنة';
   return fastRel(l.i) + ' · ' + (l.tags.includes('white') ? 'الأيام البيض' : DN[l.d.getDay()]);
 }
-V.fasting = () => {
+function viewFasting() {
   const list = fastList(60), g = d => new Intl.DateTimeFormat('ar-EG', { day: 'numeric', month: 'long' }).format(d), a = store.get('alarm', {});
   const n0 = list[0], rows = list.slice(0, 14).map(x => `<div class="frow"><div class="fd"><b>${DN[x.d.getDay()]}</b><span>${g(x.d)}</span></div><div class="fh">${num(x.h.d)} ${HM[x.h.m]} ${num(x.h.y)}</div><div class="ft"><span class="pill${x.tags.includes('white') ? ' s' : ''}">${fastLabel(x.tags)}</span><span class="muted">${fastRel(x.i)}</span></div></div>`).join('');
   return { head: hdr('أيام الصيام المستحبة', '', true), body: `
@@ -127,7 +127,7 @@ V.fasting = () => {
   <div class="card"><h3>الجاي</h3>${rows}</div>
   <div class="card"><h3>إيه هي الأيام البيض؟</h3><div class="muted" style="line-height:1.9">أيام ١٣ و١٤ و١٥ من كل شهر هجري، وسُميت بيضاء لأن لياليها بيضاء بالقمر. وبرضه سنة صيام الاثنين والخميس. بنستثني رمضان والعيدين وأيام التشريق.</div></div>
   <div class="card"><h3>الدليل باختصار</h3><div class="muted" style="line-height:1.9">• الأيام البيض: حديث أبي ذر «إذا صمت من الشهر ثلاثة أيام فصم ثلاث عشرة وأربع عشرة وخمس عشرة»، رواه الترمذي والنسائي.<br>• الاثنين والخميس: «تُعرض الأعمال يوم الاثنين والخميس، فأحب أن يُعرض عملي وأنا صائم»، رواه الترمذي.</div><div class="muted" style="margin-top:8px;font-size:12px">التاريخ الهجري بالتقويم المحسوب (أم القرى)، وممكن يختلف يوم عن رؤية الهلال في مصر.</div></div>` };
-};
+}
 function thirds() {
   if (!day) return '';
   const m = secs(day.t.Maghrib), f = (tomorrow ? secs(tomorrow.t.Fajr) : secs(day.t.Fajr)) + 86400, n = f - m;
@@ -221,6 +221,7 @@ const IC = {
 };
 /* ---------- views ---------- */
 const V = {};
+V.fasting = viewFasting;
 function hdr(title, icons = '', back = false) {
   return `<header id="top">${back ? '<a class="ib" href="javascript:history.back()" aria-label="رجوع">→</a>' : ''}<h1>${title}</h1>${icons}</header>`;
 }
