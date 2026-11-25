@@ -329,9 +329,24 @@ V.qibla = () => {
 V.settings = () => ({
   head: hdr('الإعدادات', '', true),
   body: `<div class="card list"><a href="#/city">المدينة<span class="m">${place.name}</span></a><a href="#/alarms">المنبهات<span class="m">›</span></a><a href="#/ramadan">رمضان والسحور<span class="m">›</span></a>
-  <a href="https://t.me/+201061428522" target="_blank" rel="noopener">تواصل والدعم (تيليجرام)<span class="m">↗</span></a></div>
+  </div>
   <div class="card"><h3>طريقة حساب المواقيت</h3><div class="chips">${METHODS.map(m => `<button class="chip${store.get('method', 0) === m[0] ? ' on' : ''}" data-method="${m[0]}">${m[1]}</button>`).join('')}</div><div class="muted">الوضع التلقائي بيختار الطريقة المناسبة لبلدك.</div></div>
-  <div class="card"><button class="btn" data-share style="width:100%">مشاركة التطبيق مع الأصحاب</button>
+  <div class="card"><h3>صلاحيات التطبيق</h3>
+   <div class="muted" style="margin-bottom:8px">التطبيق محتاج الصلاحيات دي عشان يشتغل صح. مفيش بيانات بتتبعت لأي حد، كله بيتخزن على موبايلك.</div>
+   <div class="prm"><span>📍 الموقع<br><span class="muted">لحساب مواقيت الصلاة واتجاه القبلة حسب مكانك. تقدر تختار مدينتك بإيدك بدل كده.</span></span><b id="pm-loc">…</b></div>
+   <button class="btn g" data-loc style="width:100%;margin:6px 0 12px">السماح بالموقع</button>
+   <div class="prm"><span>🔔 الإشعارات<br><span class="muted">لتنبيهات الصلاة والإقامة والجمعة والورد والسحور.</span></span><b>${'Notification' in window ? ({ granted: 'مسموح ✓', denied: 'مرفوض', default: 'لسه' })[Notification.permission] : 'مش مدعوم'}</b></div>
+   <button class="btn g" data-perm style="width:100%;margin:6px 0 12px">تفعيل الإشعارات</button>
+   <div class="prm"><span>🧭 حساسات الحركة<br><span class="muted">لبوصلة القبلة.</span></span><b>${window.DeviceOrientationEvent ? 'متاح' : 'مش مدعوم'}</b></div>
+   <div class="prm"><span>🔊 الصوت والاهتزاز<br><span class="muted">لصوت الأذان وعدّاد التسبيح. مش محتاج إذن.</span></span><b>تلقائي</b></div>
+   <div class="muted" style="margin-top:8px">لو رفضت صلاحية بالغلط: من إعدادات المتصفح أو التطبيق، اختار الصلاحيات وفعّلها.</div></div>
+   <div class="card"><h3>للتواصل والدعم ومزيد من التحديثات</h3><div class="list">
+   <a href="https://t.me/+201061428522" target="_blank" rel="noopener">تيليجرام<span class="m">↗</span></a>
+   <a href="mailto:mojshshm29@gmail.com">الإيميل: mojshshm29@gmail.com<span class="m">✉</span></a></div></div>
+   <div class="card"><h3>اقتراحاتك</h3><div class="muted" style="line-height:1.9;margin-bottom:10px">عندك فكرة أو ميزة نفسك تشوفها في التطبيق؟ أو لقيت مشكلة؟ ابعتلنا على تيليجرام أو الإيميل، وكل اقتراح بنقراه ونحاول نضيفه في التحديثات الجاية.</div>
+   <a class="btn" style="display:block;text-align:center;text-decoration:none" href="https://t.me/+201061428522" target="_blank" rel="noopener">ابعت اقتراح على تيليجرام</a>
+   <a class="btn g" style="display:block;text-align:center;text-decoration:none;margin-top:10px" href="mailto:mojshshm29@gmail.com?subject=%D8%A7%D9%82%D8%AA%D8%B1%D8%A7%D8%AD%20%D9%84%D8%AA%D8%B7%D8%A8%D9%8A%D9%82%20%D8%AD%D9%8A%D8%A7%D8%AA%D9%83%20%D9%81%D9%8A%20%D8%A7%D9%84%D8%B5%D9%84%D8%A7%D8%A9">ابعت اقتراح بالإيميل</a></div>
+   <div class="card"><button class="btn" data-share style="width:100%">مشاركة التطبيق مع الأصحاب</button>
   <button class="btn g hide" id="inst" data-install style="width:100%;margin-top:10px">ثبّت التطبيق على الشاشة الرئيسية</button></div>`
 });
 
@@ -353,12 +368,13 @@ async function render() {
   $('#nav').innerHTML = NAV.map(([k, e, n]) => `<a href="#/${k}" class="${top === k ? 'on' : ''}"><span class="i">${e}</span>${n}</a>`).join('');
   if (!(h[1] === 'p')) window.scrollTo(0, 0);
   if (r === 'tasbih') tasInit();
+  if (r === 'settings' && navigator.permissions) navigator.permissions.query({ name: 'geolocation' }).then(p => { const el = $('#pm-loc'); if (el) el.textContent = ({ granted: 'مسموح ✓', denied: 'مرفوض', prompt: 'لسه' })[p.state] || p.state; }).catch(() => {});
 }
 window.addEventListener('hashchange', render);
 
 /* ---------- events ---------- */
 document.addEventListener('click', async e => {
-  const t = e.target.closest('[data-chk],[data-snd],[data-city],[data-geo],[data-dh],[data-dreset],[data-qtab],[data-mark],[data-qs],[data-wdone],[data-ppd],[data-tday],[data-tchk],[data-alarm],[data-premin],[data-iqmin],[data-perm],[data-testalarm],[data-tasnav],[data-tast],[data-tasreset],[data-compass],[data-share],[data-install],[data-suhoor],[data-suhmin],[data-method]');
+  const t = e.target.closest('[data-chk],[data-snd],[data-city],[data-geo],[data-dh],[data-dreset],[data-qtab],[data-mark],[data-qs],[data-wdone],[data-ppd],[data-tday],[data-tchk],[data-alarm],[data-premin],[data-iqmin],[data-perm],[data-loc],[data-testalarm],[data-tasnav],[data-tast],[data-tasreset],[data-compass],[data-share],[data-install],[data-suhoor],[data-suhmin],[data-method]');
   if (!t) return; const d = t.dataset;
   if (d.chk) { const a = trk(), k = iso(); a[k] = a[k] || {}; a[k][d.chk] = !a[k][d.chk]; setTrk(a); buzz(); render(); }
   else if (d.snd) { const s = store.get('snd', {}); s[d.snd] = s[d.snd] === false ? true : false; store.set('snd', s); render(); }
@@ -379,6 +395,7 @@ document.addEventListener('click', async e => {
   else if (d.alarm) { const a = store.get('alarm', { pre: true, preMin: 15, at: true, iqama: true, iqMin: 10, audio: true, kahf: true }); a[d.alarm] = t.checked; store.set('alarm', a); }
   else if (d.premin) { const a = store.get('alarm', {}); a.preMin = +d.premin; store.set('alarm', a); render(); }
   else if (d.iqmin) { const a = store.get('alarm', {}); a.iqMin = +d.iqmin; store.set('alarm', a); render(); }
+  else if (d.loc !== undefined) { navigator.geolocation ? navigator.geolocation.getCurrentPosition(() => { toast('تم السماح بالموقع ✓'); render(); }, () => toast('الموقع مرفوض. فعّله من إعدادات المتصفح.'), { timeout: 10000 }) : toast('الجهاز مش بيدعم الموقع'); }
   else if (d.perm !== undefined) { if ('Notification' in window) { await Notification.requestPermission(); render(); } }
   else if (d.testalarm !== undefined) { notify('تجربة التنبيه', 'التنبيهات شغالة ✓'); }
   else if (d.tasnav) { const s = store.get('tas', { i: 0, c: {}, t: 33 }); s.i = (s.i + +d.tasnav + 8) % 8; store.set('tas', s); render(); }
