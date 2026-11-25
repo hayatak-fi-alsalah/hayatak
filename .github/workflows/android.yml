@@ -41,7 +41,7 @@ jobs:
           PY
           JD=java/com/hayatak/salah; mkdir -p $JD; cp ../../../../native/SettingsOpener.java ../../../../native/MainActivity.java $JD/
           M=AndroidManifest.xml
-          for p in POST_NOTIFICATIONS SCHEDULE_EXACT_ALARM RECEIVE_BOOT_COMPLETED VIBRATE WAKE_LOCK; do
+          for p in POST_NOTIFICATIONS SCHEDULE_EXACT_ALARM RECEIVE_BOOT_COMPLETED REQUEST_IGNORE_BATTERY_OPTIMIZATIONS VIBRATE WAKE_LOCK; do
             grep -q "android.permission.$p\"" $M || sed -i "s#<application#<uses-permission android:name=\"android.permission.$p\" />\n    <application#" $M
           done
           sed -i 's#<resources>#<resources>#' res/values/strings.xml
@@ -67,5 +67,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete android-latest --yes --cleanup-tag || true
-          gh release create android-latest hayatak.apk --title "حياتك في الصلاة (Android)" --notes "APK for direct install. Run ${{ github.run_number }}" --latest
+          if gh release view android-latest >/dev/null 2>&1; then
+            gh release upload android-latest hayatak.apk --clobber
+            gh release edit android-latest --notes "APK for direct install. Run ${{ github.run_number }}"
+          else
+            gh release create android-latest hayatak.apk --title "Hayatak Android" --notes "APK for direct install. Run ${{ github.run_number }}" --latest
+          fi

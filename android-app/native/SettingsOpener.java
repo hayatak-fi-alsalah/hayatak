@@ -28,10 +28,26 @@ public class SettingsOpener extends Plugin {
     }
 
     @PluginMethod
+    public void isIgnoring(PluginCall call) {
+        boolean v = false;
+        try {
+            android.os.PowerManager pm = (android.os.PowerManager) getContext().getSystemService(android.content.Context.POWER_SERVICE);
+            v = pm.isIgnoringBatteryOptimizations(getContext().getPackageName());
+        } catch (Exception e) {}
+        JSObject r = new JSObject();
+        r.put("value", v);
+        call.resolve(r);
+    }
+
+    @PluginMethod
     public void open(PluginCall call) {
         String kind = call.getString("kind", "app");
         boolean ok = false;
-        if ("battery".equals(kind)) {
+        if ("ignore".equals(kind)) {
+            Intent i = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:" + getContext().getPackageName()));
+            ok = tryStart(i);
+            if (!ok) ok = tryStart(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
+        } else if ("battery".equals(kind)) {
             ok = tryStart(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
         } else if ("auto".equals(kind)) {
             String[][] comps = {

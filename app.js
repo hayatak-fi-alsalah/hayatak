@@ -599,7 +599,25 @@ async function nativeAsk() {
   try { await ln.requestPermissions(); } catch (e) {}
   try { const r = await ln.checkExactNotificationSetting(); if (r && r.exact_alarm !== 'granted') await ln.changeExactNotificationSetting(); } catch (e) {}
   nativeSig = ''; nativeSync();
+  setTimeout(batteryFlow, 1500);
 }
+let batBusy = false;
+async function batteryFlow() {
+  if (batBusy || store.get('batDone', false)) return; batBusy = true;
+  try {
+    const p = window.Capacitor.registerPlugin('SettingsOpener');
+    let ign = false; try { ign = (await p.isIgnoring()).value; } catch (e) {}
+    if (!ign && confirm('عشان الأذان والتذكيرات تشتغل والتطبيق مقفول، لازم تسمح للتطبيق يشتغل في الخلفية. هيظهرلك سؤال من النظام، اختار "سماح". تمام؟')) {
+      store.set('autoPending', true); await p.open({ kind: 'ignore' });
+    } else { store.set('batDone', true); }
+  } catch (e) { store.set('batDone', true); }
+  batBusy = false;
+}
+document.addEventListener('visibilitychange', async () => {
+  if (!NATIVE || document.visibilityState !== 'visible' || !store.get('autoPending', false)) return;
+  store.set('autoPending', false); store.set('batDone', true);
+  setTimeout(() => { try { if (confirm('خطوة أخيرة: في بعض الموبايلات (زي ريلمي) لازم تفعّل "التشغيل التلقائي" للتطبيق. أفتحلك الصفحة؟')) window.Capacitor.registerPlugin('SettingsOpener').open({ kind: 'auto' }); } catch (e) {} }, 600);
+});
 function tzOff(ts, tz) { try { const p = new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' }).formatToParts(new Date(ts)); const g = t => +p.find(x => x.type === t).value; return Date.UTC(g('year'), g('month') - 1, g('day'), g('hour'), g('minute'), g('second')) - Math.floor(ts / 1000) * 1000; } catch (e) { return -new Date(ts).getTimezoneOffset() * 60000; } }
 function zonedEpoch(dt, hh, mm, tz) { const guess = Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate(), hh, mm); let t = guess - tzOff(guess, tz); t = guess - tzOff(t, tz); return t; }
 let nativeSig = '', nativeBusy = false;
