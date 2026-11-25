@@ -263,7 +263,7 @@ V.reader = async n => {
   const wirdp = store.get('wirdp', { d: iso(), n: 0 });
   return {
     head: hdr(surah, `<button class="ib" data-mark="${n}" aria-label="علامة">${marks.includes(n) ? '★' : '☆'}</button>`, true),
-    body: `<div class="sub center">الجزء ${num(juz)} · صفحة ${num(n)}</div><div class="mushaf" style="--qs:${qs}px">${mushafPage(q, n)}</div>
+    body: `<div class="mushaf" style="--qs:${qs}px">${mushafPage(q, n)}</div>
     <div class="pager"><a class="btn g" href="#/quran/p/${Math.min(604, n + 1)}" style="text-decoration:none">التالية ›</a><span>
       <button class="chip" data-qs="-2">أ-</button> <button class="chip" data-qs="2">أ+</button></span><a class="btn g" href="#/quran/p/${Math.max(1, n - 1)}" style="text-decoration:none">‹ السابقة</a></div>
     <div class="center"><button class="btn" data-wdone="${n}">✓ قرأت الصفحة (ورد اليوم)</button><div class="muted" style="margin-top:6px">قرأت اليوم ${num(wirdp.d === iso() ? wirdp.n : 0)} صفحة</div></div>`
