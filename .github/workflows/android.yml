@@ -27,6 +27,10 @@ jobs:
           mkdir -p res/raw
           for v in aaqib sabah makkah; do cp ../../../../../audio/adhan-$v.mp3 res/raw/adhan_$v.mp3; done
           rm -rf res/mipmap-anydpi-v26 res/drawable-v24 res/drawable/ic_launcher_background.xml
+          mkdir -p res/mipmap-anydpi-v26 res/drawable-nodpi
+          cp ../../../../native/res/ic_launcher.xml res/mipmap-anydpi-v26/ic_launcher.xml; cp ../../../../native/res/ic_launcher.xml res/mipmap-anydpi-v26/ic_launcher_round.xml
+          cp ../../../../native/ic_launcher_fg.png res/drawable-nodpi/ic_launcher_fg.png
+          printf '<?xml version="1.0" encoding="utf-8"?>\n<resources><color name="ic_launcher_background">#10224F</color></resources>\n' > res/values/ic_launcher_background.xml
           pip install pillow -q
           python3 - <<'PY'
           from PIL import Image
@@ -36,7 +40,7 @@ jobs:
               im=Image.open(root+'maskable-512.png').convert('RGBA').resize((sz,sz),Image.LANCZOS)
               for f in ('ic_launcher','ic_launcher_round','ic_launcher_foreground'): im.save(f'res/mipmap-{n}/{f}.png')
           os.makedirs('res/drawable',exist_ok=True)
-          g=Image.open(root+'icon-192.png').convert('RGBA').resize((96,96),Image.LANCZOS)
+          g=Image.open('../../../../native/stat_glyph.png').convert('RGBA'); g2=Image.new('RGBA',(96,96),(0,0,0,0)); g2.paste(g,((96-g.width)//2,(96-g.height)//2)); g=g2
           w=Image.new('RGBA',g.size,(255,255,255,0)); w.putalpha(g.getchannel('A')); wh=Image.new('RGBA',g.size,(255,255,255,255)); wh.putalpha(g.getchannel('A')); wh.save('res/drawable/ic_stat_hayatak.png')
           PY
           cp ../../../../native/iqama_soft.wav ../../../../native/pre_soft.wav ../../../../native/pre_nasheed.mp3 res/raw/
