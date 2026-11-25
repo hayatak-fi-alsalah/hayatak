@@ -4,7 +4,7 @@ const $ = s => document.querySelector(s);
 const AR = '٠١٢٣٤٥٦٧٨٩';
 const num = n => String(n).replace(/\d/g, d => AR[+d]);
 const store = {
-  get(k, d) { try { const v = localStorage.getItem('hq.' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  get(k, d) { try { const v = localStorage.getItem('hq.' + k); if (v == null) return d; const p = JSON.parse(v); if (p == null) return d; if (d !== undefined && d !== null && (typeof p !== typeof d || Array.isArray(p) !== Array.isArray(d))) return d; return p; } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem('hq.' + k, JSON.stringify(v)); } catch (e) {} }
 };
 const fetchJ = async (u, ms = 10000) => { const c = new AbortController(), tm = setTimeout(() => c.abort(), ms); try { const r = await fetch(u, { signal: c.signal }); if (!r.ok) throw new Error('http ' + r.status); return await r.json(); } finally { clearTimeout(tm); } };
@@ -193,7 +193,7 @@ V.group = async id => {
   return { head: hdr(g[2], '', true), body: `<div class="card list">${ids.map(i => { const c = AD.find(x => x.id === i); return c ? `<a href="#/adhkar/c/${c.id}">${c.title}<span class="m">${num(c.items.length)}</span></a>` : ''; }).join('')}</div>` };
 };
 V.cat = async id => {
-  await loadAd(); const c = AD.find(x => x.id === +id); if (!c) return { head: hdr('الأذكار', '', true), body: '' };
+  await loadAd(); const c = AD.find(x => x.id === +id); if (!c) return { head: hdr('الأذكار', '', true), body: '<div class="card center sub">القسم ده مش موجود. <a href="#/adhkar">ارجع للأذكار</a></div>' };
   const st = store.get('ad.' + c.id, { d: iso(), c: {} }); if (st.d !== iso()) { st.d = iso(); st.c = {}; store.set('ad.' + c.id, st); }
   const done = c.items.filter((x, i) => (st.c[i] || 0) >= (x.count || 1)).length;
   return {
