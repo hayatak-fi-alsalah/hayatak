@@ -85,7 +85,11 @@ function thirds() {
 /* ---------- tracking ---------- */
 const trk = () => store.get('trk', {});
 function setTrk(t) { store.set('trk', t); }
-function xpOf(t) { let x = 0; for (const d in t) { const e = t[d]; PR.forEach(([k]) => { if (e[k]) x += 10; }); NAF.forEach(([k]) => { if (e['n' + k]) x += 3; }); } return x; }
+const NAFN = () => NAF.reduce((a, x) => a + x[2], 0);
+function dayTier(e) { e = e || {}; if (!PR.every(([k]) => e[k])) return 0; const nf = NAF.every(([k]) => e['n' + k]); return nf && e.w ? 3 : nf ? 2 : 1; }
+const TIERS = [null, ['🥉', 'برونزي', 20], ['🥈', 'فضي', 50], ['🥇', 'ذهبي', 100]];
+function dayXp(e) { let x = 0; PR.forEach(([k]) => { if (e[k]) x += 10; }); NAF.forEach(([k]) => { if (e['n' + k]) x += 3; }); if (e.w) x += 10; const t = dayTier(e); if (t) x += TIERS[t][2]; return x; }
+function xpOf(t) { let x = 0; for (const d in t) x += dayXp(t[d]); return x; }
 function streaks(t) {
   const full = d => { const e = t[d] || {}; return PR.every(([k]) => e[k]); };
   let cur = 0; const d = new Date(); if (!full(iso(d))) d.setDate(d.getDate() - 1);
@@ -265,17 +269,20 @@ V.track = () => {
     <div class="card"><h3>النوافل <span class="muted" style="float:left">${num(naf)} / ١٢</span></h3><div class="circ">${NAF.map(([x, n, c]) => `<div><button class="chk${e['n' + x] ? ' on' : ''}" data-tchk="n${x}" style="width:44px;height:44px;font-size:16px">${e['n' + x] ? '✓' : num(c)}</button>${n}</div>`).join('')}</div></div>
     ${calCard(t)}${badgeCard(t, st)}
     <div class="card"><h3>الهدف اليومي</h3><div class="stats"><div><b>🔥 ${num(st.cur)} يوم</b><span>السلسلة الحالية</span></div><div><b>🏅 ${num(st.best)} يوم</b><span>أطول سلسلة</span></div><div><b>⭐ ${num(xp)}</b><span>النقاط</span></div></div>
-    <div class="muted" style="margin-top:10px">كل فرض بـ ١٠ نقاط وكل نافلة بـ ٣. كل ١٥٠ نقطة مستوى جديد.</div></div>`
+    <div class="muted" style="margin-top:10px">كل فرض بـ ١٠ نقاط وكل نافلة بـ ٣ وإنجاز الورد بـ ١٠. كل ١٥٠ نقطة مستوى جديد.</div></div>
+    <div class="card"><h3>مستوى اليوم ${dayTier(e) ? TIERS[dayTier(e)][0] + ' ' + TIERS[dayTier(e)][1] : ''}</h3>
+    <div class="muted" style="line-height:2">🥉 برونزي: الصلوات الخمس كلها (+٢٠)<br>🥈 فضي: الصلوات + كل النوافل (+٥٠)<br>🥇 ذهبي: الصلوات + النوافل + ورد اليوم (+١٠٠)</div>
+    <div class="muted" style="margin-top:8px">${dayTier(e) === 3 ? 'يوم كامل، ما شاء الله 🎉' : 'نقاط اليوم: ' + num(dayXp(e))}</div></div>`
   };
 };
 
 V.alarms = () => {
   const a = store.get('alarm', { pre: true, preMin: 15, at: true, iqama: true, iqMin: 10, audio: true, kahf: true });
-  const sw = (k, label, sub) => `<label class="sw"><span>${label}${sub ? `<br><span class="muted">${sub}</span>` : ''}</span><input type="checkbox" data-alarm="${k}" ${a[k] ? 'checked' : ''}></label>`;
+  const sw = (k, label, sub) => `<label class="sw"><span>${label}${sub ? `<br><span class="muted">${sub}</span>` : ''}</span><input type="checkbox" data-alarm="${k}" ${(k === 'wirdr' ? a[k] !== false : a[k]) ? 'checked' : ''}></label>`;
   const perm = ('Notification' in window) ? Notification.permission : 'unsupported';
   return {
     head: hdr('المنبهات', ico('#/settings', '⚙️', 'الإعدادات')),
-    body: `<div class="card"><h3>التنبيهات</h3>${sw('pre', 'تنبيه قبل الصلاة', 'قبل كل صلاة بـ ' + num(a.preMin) + ' دقيقة')}${sw('at', 'تنبيه وقت الأذان')}${sw('iqama', 'تنبيه الإقامة', 'بعد الأذان بـ ' + num(a.iqMin) + ' دقيقة')}${sw('audio', 'تشغيل صوت الأذان داخل التطبيق')}${sw('kahf', 'تذكير الجمعة', 'سورة الكهف والإكثار من الصلاة على النبي ﷺ، الجمعة الساعة ٩ صباحا')}</div>
+    body: `<div class="card"><h3>التنبيهات</h3>${sw('pre', 'تنبيه قبل الصلاة', 'قبل كل صلاة بـ ' + num(a.preMin) + ' دقيقة')}${sw('at', 'تنبيه وقت الأذان')}${sw('iqama', 'تنبيه الإقامة', 'بعد الأذان بـ ' + num(a.iqMin) + ' دقيقة')}${sw('audio', 'تشغيل صوت الأذان داخل التطبيق')}${sw('wirdr', 'تذكير الورد اليومي', 'لو ما خلصتش ورد النهاردة، تنبيه الساعة ٨ مساء')}${sw('kahf', 'تذكير الجمعة', 'سورة الكهف والإكثار من الصلاة على النبي ﷺ، الجمعة الساعة ٩ صباحا')}</div>
     <div class="card"><h3>دقايق التنبيه قبل الصلاة</h3><div class="chips">${[5, 10, 15, 20, 30].map(n => `<button class="chip${a.preMin === n ? ' on' : ''}" data-premin="${n}">${num(n)}</button>`).join('')}</div>
     <h3>دقايق الإقامة بعد الأذان</h3><div class="chips">${[5, 10, 15, 20, 25].map(n => `<button class="chip${a.iqMin === n ? ' on' : ''}" data-iqmin="${n}">${num(n)}</button>`).join('')}</div></div>
     <a class="tile wide" style="margin-bottom:14px" href="#/ramadan"><span class="e">🌙</span>رمضان والسحور</a>
@@ -366,7 +373,7 @@ document.addEventListener('click', async e => {
   else if (d.qtab) { store.set('qtab', d.qtab); render(); }
   else if (d.mark) { const m = store.get('marks', []), n = +d.mark, i = m.indexOf(n); i < 0 ? m.push(n) : m.splice(i, 1); store.set('marks', m); render(); }
   else if (d.qs) { store.set('qs', Math.max(18, Math.min(44, store.get('qs', 27) + +d.qs))); render(); }
-  else if (d.wdone) { const n = +d.wdone, p = store.get('wirdp', { d: iso(), n: 0 }); if (p.d !== iso()) { p.d = iso(); p.n = 0; } p.n++; store.set('wirdp', p); store.set('wirdpos', Math.min(604, n + 1)); toast('تم تسجيل الصفحة ✓'); render(); }
+  else if (d.wdone) { const n = +d.wdone, p = store.get('wirdp', { d: iso(), n: 0 }); if (p.d !== iso()) { p.d = iso(); p.n = 0; } p.n++; store.set('wirdp', p); { const wd = store.get('wird', { ppd: 5 }); if (p.n >= wd.ppd) { const tt = trk(), kk = iso(); tt[kk] = tt[kk] || {}; tt[kk].w = 1; setTrk(tt); } } store.set('wirdpos', Math.min(604, n + 1)); toast('تم تسجيل الصفحة ✓'); render(); }
   else if (d.ppd) { const w = store.get('wird', { ppd: 5 }); w.ppd = +d.ppd; store.set('wird', w); render(); }
   else if (d.tday) { store.set('tday', Math.min(0, store.get('tday', 0) + +d.tday)); render(); }
   else if (d.tchk) { const a = trk(), dt = new Date(); dt.setDate(dt.getDate() + store.get('tday', 0)); const k = iso(dt); a[k] = a[k] || {}; a[k][d.tchk] = !a[k][d.tchk]; setTrk(a); buzz(); render(); }
@@ -441,6 +448,8 @@ function playAdhan() { const a = store.get('alarm', { audio: true }); if (!a.aud
 function checkAlarms() {
   const g = new Date(), kid = 'kahf' + iso(g);
   if (g.getDay() === 5 && g.getHours() === 9 && g.getMinutes() < 2 && !fired[kid] && store.get('alarm', { kahf: true }).kahf !== false) { fired[kid] = 1; notify('يوم الجمعة', 'لا تنسَ قراءة سورة الكهف والإكثار من الصلاة على النبي ﷺ'); }
+  { const wr = store.get('alarm', {}), wid = 'wird' + iso(g), wp = store.get('wirdp', { d: iso(), n: 0 }), wd = store.get('wird', { ppd: 5 }), done = wp.d === iso() && wp.n >= wd.ppd;
+    if (wr.wirdr !== false && g.getHours() === 20 && g.getMinutes() < 2 && !done && !fired[wid]) { fired[wid] = 1; notify('الورد اليومي 📖', 'لسه ما قرأتش ورد النهاردة، ' + num(wd.ppd) + ' صفحات في انتظارك'); } }
   if (day && day.hm === 9) {
     const sa = store.get('suhoor', { on: true, min: 45 }), nowS = nowSecs(day.tz), st = secs(day.t.Fajr) - sa.min * 60, id = 'suh' + iso();
     if (sa.on && nowS >= st && nowS < st + 45 && !fired[id]) { fired[id] = 1; notify('السحور 🌙', `باقي ${num(sa.min)} دقيقة على أذان الفجر`); playMasa(); }
