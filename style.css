@@ -188,7 +188,7 @@ body.home{position:relative}
 .bdg{position:absolute;top:-6px;left:-6px;background:#f0626a;color:#fff;font-style:normal;font-size:12px;font-weight:700;min-width:20px;height:20px;border-radius:10px;display:grid;place-items:center}
 .hero .loc{display:flex;align-items:center;gap:8px;font-size:19px;color:var(--ink);text-decoration:none;margin-top:14px}.loc .arr{transform:rotate(-45deg);color:#fff;font-size:20px}
 .hero .dt{margin:6px 0 14px}
-.chips{display:flex;justify-content:space-between;flex-direction:row-reverse;gap:8px;flex-wrap:wrap}
+.chips{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
 .chips .pill{margin:0;padding:8px 16px;font-size:14px}.chips .pill.s{border:1.5px solid #cfcade;border-style:solid}.tk{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--ac);font-style:normal;font-size:12px;margin-right:6px}
 .plist{background:#26252d;border-radius:34px;padding:10px 14px!important}
 .prow.now{background:#3a2d6b;border-radius:26px}
