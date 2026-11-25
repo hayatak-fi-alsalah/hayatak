@@ -1,0 +1,465 @@
+'use strict';
+/* حياتك في الصلاة - Hayatak fi al-Salah. Plain JS PWA, no build step. */
+const $ = s => document.querySelector(s);
+const AR = '٠١٢٣٤٥٦٧٨٩';
+const num = n => String(n).replace(/\d/g, d => AR[+d]);
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('hq.' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem('hq.' + k, JSON.stringify(v)); } catch (e) {} }
+};
+const iso = (d = new Date()) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+const toast = m => { const t = document.createElement('div'); t.className = 'toast'; t.textContent = m; document.body.appendChild(t); setTimeout(() => t.remove(), 2200); };
+const buzz = (ms = 15) => { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) {} };
+
+const CITIES = [
+  ['cairo', 'القاهرة', 30.0444, 31.2357], ['giza', 'الجيزة', 30.0131, 31.2089], ['alex', 'الإسكندرية', 31.2001, 29.9187],
+  ['qalyubia', 'القليوبية (بنها)', 30.4659, 31.1848], ['mansoura', 'المنصورة', 31.0409, 31.3785], ['tanta', 'طنطا', 30.7865, 31.0004],
+  ['port', 'بورسعيد', 31.2653, 32.3019], ['suez', 'السويس', 29.9668, 32.5498], ['ismailia', 'الإسماعيلية', 30.5965, 32.2715],
+  ['fayoum', 'الفيوم', 29.3084, 30.8428], ['minya', 'المنيا', 28.1099, 30.7503], ['asyut', 'أسيوط', 27.1783, 31.1859],
+  ['sohag', 'سوهاج', 26.5591, 31.6948], ['luxor', 'الأقصر', 25.6872, 32.6396], ['aswan', 'أسوان', 24.0889, 32.8998],
+  ['makkah', 'مكة المكرمة', 21.3891, 39.8579], ['madinah', 'المدينة المنورة', 24.4672, 39.6111]
+];
+const PR = [['Fajr', 'الفجر'], ['Dhuhr', 'الظهر'], ['Asr', 'العصر'], ['Maghrib', 'المغرب'], ['Isha', 'العشاء']];
+const NAF = [['f2', 'قبل الفجر', 2], ['d4', 'قبل الظهر', 4], ['d2', 'بعد الظهر', 2], ['m2', 'بعد المغرب', 2], ['i2', 'بعد العشاء', 2]];
+
+/* ---------- place & prayer times ---------- */
+const METHODS = [[0, 'تلقائي حسب موقعك'], [5, 'الهيئة المصرية العامة للمساحة'], [4, 'أم القرى (مكة)'], [3, 'رابطة العالم الإسلامي'], [2, 'أمريكا الشمالية (ISNA)'], [1, 'جامعة العلوم الإسلامية بكراتشي'], [13, 'ديانت (تركيا)'], [16, 'دبي'], [9, 'الكويت'], [10, 'قطر'], [11, 'سنغافورة'], [3.5, 'المغرب العربي (MWL)'], [7, 'جامعة طهران'], [12, 'اتحاد المنظمات الإسلامية بفرنسا']];
+function methodFor() {
+  const m = store.get('method', 0); if (m && m !== 3.5) return m; if (m === 3.5) return 3;
+  const { lat, lon } = place, inb = (a, b, c, d) => lat >= a && lat <= b && lon >= c && lon <= d;
+  if (inb(22, 31.8, 24.6, 37)) return 5;           // Egypt
+  if (inb(16, 32.5, 34.5, 56)) return inb(22.5, 26.5, 51, 56.5) ? 16 : inb(28.5, 30.2, 46.5, 48.6) ? 9 : inb(24.4, 26.3, 50.7, 51.7) ? 10 : 4; // Arabia and Gulf
+  if (inb(36, 42.2, 26, 45)) return 13;            // Turkey
+  if (inb(5, 38, 60, 93)) return 1;                // Pakistan, India, Bangladesh, Afghanistan
+  if (inb(25, 40, 44, 63.5)) return 7;             // Iran
+  if (inb(0.8, 7, 99, 120)) return 11;             // Malaysia, Singapore
+  if (inb(24, 72, -170, -50)) return 2;            // North America
+  if (inb(41, 51.5, -5.5, 9.8)) return 12;         // France
+  return 3;                                        // MWL elsewhere
+}
+let place = store.get('place', { id: 'cairo', name: 'القاهرة', lat: 30.0444, lon: 31.2357 });
+let day = null, tomorrow = null, ready = false;
+const to12 = t => { const [h, m] = t.split(' ')[0].split(':').map(Number); return num(h % 12 || 12) + ':' + num(String(m).padStart(2, '0')) + ' ' + (h >= 12 ? 'م' : 'ص'); };
+const secs = t => { const [h, m] = t.split(' ')[0].split(':').map(Number); return h * 3600 + m * 60; };
+const nowSecs = tz => { try { const p = new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).formatToParts(new Date()); const g = t => (+p.find(x => x.type === t).value) % 24; return g('hour') * 3600 + g('minute') * 60 + g('second'); } catch (e) { const d = new Date(); return d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds(); } };
+const fmtHMS = s => num(Math.floor(s / 3600)) + ':' + num(String(Math.floor(s / 60) % 60).padStart(2, '0')) + ':' + num(String(s % 60).padStart(2, '0'));
+function dstr(d) { return String(d.getDate()).padStart(2, '0') + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + d.getFullYear(); }
+async function loadDay(d) {
+  const key = `t2.${store.get('method', 0)}.${place.lat.toFixed(2)}.${place.lon.toFixed(2)}.${dstr(d)}`;
+  const c = store.get(key);
+  if (c) return c;
+  const method = methodFor();
+  const r = await fetch(`https://api.aladhan.com/v1/timings/${dstr(d)}?latitude=${place.lat}&longitude=${place.lon}&method=${method}`);
+  const j = await r.json();
+  const h = j.data.date.hijri;
+  const out = { t: j.data.timings, tz: j.data.meta.timezone, hijri: `${num(h.day)} ${h.month.ar} ${num(h.year)} هـ`, hd: +h.day, hm: +h.month.number, hy: +h.year, wd: h.weekday.ar };
+  store.set(key, out); return out;
+}
+async function refreshTimes() {
+  ready = false; render();
+  try {
+    const d = new Date(), t = new Date(Date.now() + 864e5);
+    [day, tomorrow] = await Promise.all([loadDay(d), loadDay(t)]);
+    ready = true;
+  } catch (e) { day = store.get('lastDay'); tomorrow = null; ready = !!day; if (!day) toast('مفيش اتصال، جرب تاني'); }
+  if (day && ready) store.set('lastDay', day);
+  render();
+}
+function nextPrayer() {
+  if (!day) return null;
+  const now = nowSecs(day.tz);
+  const list = PR.map(([k, n]) => ({ k, n, s: secs(day.t[k]) }));
+  const nx = list.find(p => p.s > now);
+  const prev = [...list].reverse().find(p => p.s <= now);
+  if (nx) return { ...nx, left: nx.s - now, span: nx.s - (prev ? prev.s : secs(day.t.Isha) - 86400) , now };
+  const f = tomorrow ? secs(tomorrow.t.Fajr) : secs(day.t.Fajr);
+  return { k: 'Fajr', n: 'الفجر', left: 86400 - now + f, span: 86400 - secs(day.t.Isha) + f, now, tmr: true };
+}
+function thirds() {
+  if (!day) return '';
+  const m = secs(day.t.Maghrib), f = (tomorrow ? secs(tomorrow.t.Fajr) : secs(day.t.Fajr)) + 86400, n = f - m;
+  const f12 = s => to12(`${String(Math.floor(((s % 86400) / 3600))).padStart(2, '0')}:${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}`);
+  return `<div class="card"><h3>ثلث الليل</h3><div class="thirds"><div>الثلث الأول<b>${f12(m)}</b></div><div>منتصف الليل<b>${f12(m + n / 2)}</b></div><div>الثلث الأخير<b>${f12(m + 2 * n / 3)}</b></div></div></div>`;
+}
+
+/* ---------- tracking ---------- */
+const trk = () => store.get('trk', {});
+function setTrk(t) { store.set('trk', t); }
+function xpOf(t) { let x = 0; for (const d in t) { const e = t[d]; PR.forEach(([k]) => { if (e[k]) x += 10; }); NAF.forEach(([k]) => { if (e['n' + k]) x += 3; }); } return x; }
+function streaks(t) {
+  const full = d => { const e = t[d] || {}; return PR.every(([k]) => e[k]); };
+  let cur = 0; const d = new Date(); if (!full(iso(d))) d.setDate(d.getDate() - 1);
+  while (full(iso(d))) { cur++; d.setDate(d.getDate() - 1); }
+  const days = Object.keys(t).filter(full).sort(); let best = 0, run = 0, prev = null;
+  days.forEach(x => { const dt = new Date(x); run = prev && (dt - prev) === 864e5 ? run + 1 : 1; best = Math.max(best, run); prev = dt; });
+  return { cur, best };
+}
+const GEMS = ['⚫', '🟡', '🔷', '🟢', '🟣', '🔴', '💎'];
+
+/* ---------- data ---------- */
+let AD = null, QU = null;
+const loadAd = async () => AD || (AD = await (await fetch('data/adhkar.json')).json());
+const loadQu = async () => QU || (QU = await (await fetch('data/quran.json')).json());
+const GROUPS = [
+  ['sel', '⭐', 'الأذكار المختارة', [130, 129, 107, 131, 34, 35, 132]],
+  ['pray', '🕌', 'الصلاة', [6, 7, 10, 11, 12, 13, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 32, 33]],
+  ['sleep', '🌙', 'النوم والاستيقاظ', [2, 3, 29, 30, 31]],
+  ['home', '🏠', 'المنزل', [4, 5, 8, 9]],
+  ['food', '🍽️', 'الطعام والشراب', [68, 69, 70, 71, 72, 73, 74, 75, 76]],
+  ['cloth', '👕', 'الملابس', [14, 15, 16, 17]],
+  ['sick', '🤒', 'المرض والوفاة', [49, 50, 51, 124, 125, 52, 53, 54, 55, 56, 57, 58, 59, 60]],
+  ['hard', '⛈️', 'الأوقات الصعبة', [34, 35, 36, 37, 38, 39, 40, 42, 43, 44, 45, 46, 82, 126, 128]],
+  ['money', '💰', 'المال', [41, 90, 91]],
+  ['trip', '🚗', 'السفر', [95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105]],
+  ['soc', '💬', 'اجتماعية', [77, 78, 83, 84, 85, 86, 87, 89, 93, 108, 109, 112, 113, 114]],
+  ['kids', '👶', 'الأطفال', [47, 48]],
+  ['wed', '💍', 'الزواج', [79, 80, 81]],
+  ['hajj', '🕋', 'الحج والعمرة', [115, 116, 117, 118, 119, 120, 121]],
+  ['wx', '🌧️', 'الطقس والهلال', [61, 62, 63, 64, 65, 66, 67]],
+  ['misc', '📿', 'متفرقات', []]
+];
+const used = new Set([1, ...GROUPS.flatMap(g => g[3])]);
+function groupCats(g) { if (g[0] === 'misc') return AD.filter(c => !used.has(c.id)).map(c => c.id); return g[3]; }
+
+/* ---------- views ---------- */
+const V = {};
+function hdr(title, icons = '', back = false) {
+  return `<header id="top">${back ? '<a class="ib" href="javascript:history.back()" aria-label="رجوع">→</a>' : ''}<h1>${title}</h1>${icons}</header>`;
+}
+const ico = (href, e, label) => `<a class="ib" href="${href}" aria-label="${label}">${e}</a>`;
+
+V.prayers = () => {
+  if (!ready || !day) return { head: hdr('الصلوات', ico('#/settings', '⚙️', 'الإعدادات')), body: '<div class="card center sub">بحمّل المواقيت…</div>' };
+  const np = nextPrayer(), t = trk()[iso()] || {}, snd = store.get('snd', {});
+  const pct = Math.max(0, Math.min(100, 100 - (np.left / np.span) * 100));
+  const g = new Date();
+  const fast = (day.hd >= 13 && day.hd <= 15) ? 'الأيام البيض، صيام مستحب' : (g.getDay() === 1 || g.getDay() === 4) ? (g.getDay() === 1 ? 'صيام الاثنين' : 'صيام الخميس') : '';
+  const rows = PR.map(([k, n]) => `<div class="prow${np.k === k ? ' now' : ''}"><button class="chk${t[k] ? ' on' : ''}" data-chk="${k}" aria-label="صليت ${n}">${t[k] ? '✓' : ''}</button><div class="n">${n}</div><div class="t">${to12(day.t[k])}</div><button class="snd${snd[k] === false ? ' off' : ''}" data-snd="${k}" aria-label="صوت الأذان">🔊</button></div>`).join('');
+  return {
+    head: hdr('', ico('#/settings', '⚙️', 'الإعدادات') + ico('#/tasbih', '📿', 'تسبيح') + ico('#/qibla', '🧭', 'القبلة')),
+    body: `<div class="hero"><h2>${np.n} خلال</h2><div class="cd" id="cd">${fmtHMS(np.left)}</div><div class="bar"><i id="cdbar" style="width:${pct}%"></i></div>
+      <div class="sub">📍 ${place.name}</div><div class="sub">${day.hijri} · ${new Intl.DateTimeFormat('ar-EG', { day: 'numeric', month: 'long', year: 'numeric' }).format(g)}</div>
+      ${fast ? `<span class="pill">🌙 ${fast}</span>` : ''}<span class="pill s">تتبع الصلاة مفعّل ✓</span></div>
+      <div class="card" style="padding:6px 10px">${rows}</div>
+      <div class="card"><h3>الشروق</h3><div class="sub">تنتهي صلاة الفجر عند ${to12(day.t.Sunrise)}</div></div>${thirds()}
+      <div class="center"><a class="btn g" href="#/city" style="text-decoration:none;display:inline-block">تغيير المدينة</a></div>`
+  };
+};
+
+V.city = () => ({
+  head: hdr('المدينة', '', true),
+  body: `<div class="card"><button class="btn" data-geo>📍 استخدم موقعي الحالي</button><div class="muted" id="geomsg" style="margin-top:8px"></div></div>
+    <div class="card list">${CITIES.map(c => `<a href="#/prayers" data-city="${c[0]}">${c[1]}<span class="m">${place.id === c[0] ? '✓' : ''}</span></a>`).join('')}</div>`
+});
+
+V.adhkar = async () => {
+  await loadAd();
+  const tile = (g, wide) => `<a class="tile${wide ? ' wide' : ''}" href="#/adhkar/g/${g[0]}"><span class="e">${g[1]}</span>${g[2]}</a>`;
+  return {
+    head: hdr('الأذكار', ico('#/tasbih', '📿', 'تسبيح') + ico('#/alarms', '🔔', 'المنبهات')),
+    body: `<a class="tile wide" style="margin-bottom:12px" href="#/adhkar/c/1"><span class="e">🌅</span>أذكار الصباح والمساء</a>
+      <a class="tile wide" style="margin-bottom:12px" href="#/adhkar/c/27"><span class="e">🤲</span>الأذكار بعد الصلاة</a>
+      <div class="grid">${GROUPS.map(g => tile(g)).join('')}</div>
+      <div class="card" style="margin-top:14px"><h3>بحث في كل الأذكار</h3><input type="search" id="q" placeholder="اكتب كلمة…"><div class="list" id="qr"></div></div>
+      <div class="center muted" style="margin-bottom:8px">المصدر: حصن المسلم (مجموعة أذكار موثقة)</div>`
+  };
+};
+V.group = async id => {
+  await loadAd(); const g = GROUPS.find(x => x[0] === id) || GROUPS[0];
+  const ids = groupCats(g);
+  return { head: hdr(g[2], '', true), body: `<div class="card list">${ids.map(i => { const c = AD.find(x => x.id === i); return c ? `<a href="#/adhkar/c/${c.id}">${c.title}<span class="m">${num(c.items.length)}</span></a>` : ''; }).join('')}</div>` };
+};
+V.cat = async id => {
+  await loadAd(); const c = AD.find(x => x.id === +id); if (!c) return { head: hdr('الأذكار', '', true), body: '' };
+  const st = store.get('ad.' + c.id, { d: iso(), c: {} }); if (st.d !== iso()) { st.d = iso(); st.c = {}; store.set('ad.' + c.id, st); }
+  const done = c.items.filter((x, i) => (st.c[i] || 0) >= (x.count || 1)).length;
+  return {
+    head: hdr(c.title, '', true),
+    body: `<div class="card sub">${num(done)} من ${num(c.items.length)} خلصتهم اليوم. دوس على الذكر كل مرة تقوله.</div>` +
+      c.items.map((x, i) => { const n = st.c[i] || 0, tot = x.count || 1, fin = n >= tot; return `<div class="dh${fin ? ' done' : ''}" data-dh="${c.id}:${i}"><div class="t">${x.text}</div><div class="c"><span>${fin ? 'تم ✓' : num(n) + ' / ' + num(tot)}</span><span>${tot > 1 ? 'التكرار ' + num(tot) : ''}</span></div><div class="bar"><i style="width:${Math.min(100, n / tot * 100)}%"></i></div></div>`; }).join('') +
+      `<div class="center"><button class="btn g" data-dreset="${c.id}">ابدأ من الأول</button></div>`
+  };
+};
+
+V.quran = async () => {
+  const q = await loadQu(); const last = store.get('qlast', null), wird = store.get('wird', { ppd: 5 });
+  const tab = store.get('qtab', 's');
+  const sRow = s => `<a class="srow" href="#/quran/s/${s.n}"><span class="hex">${num(s.n)}</span><span class="nm">${s.name}</span><span class="mt">${s.type === 'Meccan' ? 'مكية' : 'مدنية'} • ${num(s.ayahs)} آية</span></a>`;
+  let list;
+  if (tab === 's') list = q.surahs.map(sRow).join('');
+  else { const firsts = {}; q.pages.forEach((p, i) => { const j = p[0][3]; if (!(j in firsts)) firsts[j] = i + 1; }); list = Object.keys(firsts).map(j => `<a class="srow" href="#/quran/p/${firsts[j]}"><span class="hex">${num(j)}</span><span class="nm">الجزء ${num(j)}</span><span class="mt">صفحة ${num(firsts[j])}</span></a>`).join(''); }
+  const tp = store.get('wirdp', { d: iso(), n: 0 });
+  return {
+    head: hdr('القرآن', ico('#/quran/search', '🔍', 'بحث') + ico('#/quran/marks', '⭐', 'العلامات')),
+    body: `<h3 style="margin:8px 4px">الأنشطة الأخيرة</h3>
+    ${last ? `<a class="rec" href="#/quran/p/${last}"><span class="hex">${num(q.pages[last - 1][0][0])}</span><span style="flex:1"><b>آخر قراءة</b><br><span class="muted">صفحة ${num(last)} من ٦٠٤</span></span><span class="btn g" style="padding:6px 14px;min-height:0">كمّل</span></a>` : ''}
+    <a class="rec" href="#/quran/wird"><span class="hex">📖</span><span style="flex:1"><b>الورد اليومي</b><br><span class="muted">${num(wird.ppd)} صفحات يوميا · الختمة في ${num(Math.ceil(604 / wird.ppd))} يوم</span></span></a>
+    <div class="seg"><button data-qtab="s" class="${tab === 's' ? 'on' : ''}">سورة</button><button data-qtab="j" class="${tab === 'j' ? 'on' : ''}">جزء</button></div>${list}`
+  };
+};
+function mushafPage(q, n) {
+  const p = q.pages[n - 1]; let out = '', cur = 0;
+  p.forEach(([s, a, t]) => {
+    if (a === 1) { out += `<span class="sn">سورة ${q.surahs[s - 1].name}</span>`; if (s !== 1 && s !== 9) out += '<span class="bs">بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</span>'; }
+    out += `${t} <span class="no">﴿${num(a)}﴾</span> `;
+  });
+  return out;
+}
+V.reader = async n => {
+  const q = await loadQu(); n = Math.max(1, Math.min(604, +n || 1)); store.set('qlast', n);
+  const marks = store.get('marks', []), qs = store.get('qs', 27);
+  const surah = q.surahs[q.pages[n - 1][0][0] - 1].name, juz = q.pages[n - 1][0][3];
+  const wirdp = store.get('wirdp', { d: iso(), n: 0 });
+  return {
+    head: hdr(surah, `<button class="ib" data-mark="${n}" aria-label="علامة">${marks.includes(n) ? '★' : '☆'}</button>`, true),
+    body: `<div class="sub center">الجزء ${num(juz)} · صفحة ${num(n)}</div><div class="mushaf" style="--qs:${qs}px">${mushafPage(q, n)}</div>
+    <div class="pager"><a class="btn g" href="#/quran/p/${Math.min(604, n + 1)}" style="text-decoration:none">التالية ›</a><span>
+      <button class="chip" data-qs="-2">أ-</button> <button class="chip" data-qs="2">أ+</button></span><a class="btn g" href="#/quran/p/${Math.max(1, n - 1)}" style="text-decoration:none">‹ السابقة</a></div>
+    <div class="center"><button class="btn" data-wdone="${n}">✓ قرأت الصفحة (ورد اليوم)</button><div class="muted" style="margin-top:6px">قرأت اليوم ${num(wirdp.d === iso() ? wirdp.n : 0)} صفحة</div></div>`
+  };
+};
+V.surah = async n => { const q = await loadQu(); const i = q.pages.findIndex(p => p.some(a => a[0] === +n && a[1] === 1)); return V.reader(i + 1); };
+V.marks = async () => {
+  const marks = store.get('marks', []);
+  return { head: hdr('العلامات', '', true), body: `<div class="card list">${marks.length ? marks.sort((a, b) => a - b).map(m => `<a href="#/quran/p/${m}">صفحة ${num(m)}<span class="m">›</span></a>`).join('') : '<div class="sub center">لسه مفيش علامات. دوس ☆ في أي صفحة.</div>'}</div>` };
+};
+V.qsearch = async () => ({ head: hdr('بحث في المصحف', '', true), body: '<div class="card"><input type="search" id="qs2" placeholder="اكتب كلمة من الآية (بدون تشكيل)"><div class="list" id="qsr" style="margin-top:8px"></div></div>' });
+V.wird = async () => {
+  const w = store.get('wird', { ppd: 5, pos: 1 }), tp = store.get('wirdp', { d: iso(), n: 0 }); const nxt = store.get('wirdpos', 1);
+  return {
+    head: hdr('الورد اليومي', '', true),
+    body: `<div class="card"><h3>هدفك كل يوم</h3><div class="chips">${[1, 2, 5, 10, 20].map(n => `<button class="chip${w.ppd === n ? ' on' : ''}" data-ppd="${n}">${num(n)} ${n === 1 ? 'صفحة' : 'صفحات'}</button>`).join('')}</div>
+    <div class="sub">الختمة في ${num(Math.ceil(604 / w.ppd))} يوم</div></div>
+    <div class="card"><h3>النهاردة</h3><div class="big">${num(tp.d === iso() ? tp.n : 0)} / ${num(w.ppd)}</div><div class="prog"><i style="width:${Math.min(100, (tp.d === iso() ? tp.n : 0) / w.ppd * 100)}%"></i></div>
+    <div class="center" style="margin-top:14px"><a class="btn" style="text-decoration:none;display:inline-block" href="#/quran/p/${nxt}">ابدأ الورد من صفحة ${num(nxt)}</a></div></div>`
+  };
+};
+
+function calCard(t) {
+  const n = new Date(), y = n.getFullYear(), m = n.getMonth(), first = new Date(y, m, 1).getDay(), dim = new Date(y, m + 1, 0).getDate();
+  const names = ['ح', 'ن', 'ث', 'ر', 'خ', 'ج', 'س']; let cells = '';
+  for (let i = 0; i < (first + 1) % 7; i++) cells += '<div></div>';
+  for (let d = 1; d <= dim; d++) {
+    const e = t[iso(new Date(y, m, d))] || {}, c = PR.filter(([k]) => e[k]).length, fut = d > n.getDate();
+    cells += `<div style="opacity:${fut ? .35 : 1};display:grid;place-items:center"><span style="width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-size:14px;background:${c ? `conic-gradient(${c === 5 ? 'var(--ok)' : 'var(--gold)'} ${c * 72}deg,var(--card2) 0)` : 'var(--card2)'};${d === n.getDate() ? 'outline:2px solid var(--ac2);' : ''}"><span style="width:30px;height:30px;border-radius:50%;background:var(--card);display:grid;place-items:center">${num(d)}</span></span></div>`;
+  }
+  return `<div class="card"><h3>${new Intl.DateTimeFormat('ar-EG', { month: 'long', year: 'numeric' }).format(n)}</h3><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;text-align:center"><div class="muted">ح</div><div class="muted">ن</div><div class="muted">ث</div><div class="muted">ر</div><div class="muted">خ</div><div class="muted">ج</div><div class="muted">س</div>${cells}</div></div>`;
+}
+function badgeCard(t, st) {
+  let total = 0, fajr = 0, sun = 0; for (const d in t) { PR.forEach(([k]) => { if (t[d][k]) total++; }); if (t[d].Fajr) fajr++; if (t[d].nf2) sun++; }
+  const B = [['🏛️', 'المداومة', st.best >= 7, 'أسبوع كامل'], ['🛡️', 'حارس الفجر', fajr >= 7, '٧ فجور'], ['🌅', 'خير من الدنيا', sun >= 7, 'سنة الفجر ٧ أيام'], ['🏔️', 'المداومة الكبرى', st.best >= 30, '٣٠ يوم']];
+  return `<div class="card"><h3>الأوسمة</h3><div class="circ" style="grid-template-columns:repeat(4,1fr)">${B.map(b => `<div style="opacity:${b[2] ? 1 : .35}"><span style="font-size:36px">${b[0]}</span>${b[1]}</div>`).join('')}</div>
+  <div style="background:var(--card2);border-radius:18px;padding:14px;margin-top:14px"><div class="muted">التالي</div><b>ألف صلاة</b><div class="prog"><i style="width:${Math.min(100, total / 10)}%"></i></div><div class="muted" style="margin-top:6px">${num(total)} / ١٠٠٠ · بقيت ${num(Math.max(0, 1000 - total))} صلاة</div></div></div>`;
+}
+V.track = () => {
+  const t = trk(), td = store.get('tday', 0); const d = new Date(); d.setDate(d.getDate() + td); const k = iso(d), e = t[k] || {};
+  const xp = xpOf(t), lvl = Math.floor(xp / 150) + 1, prog = (xp % 150) / 150 * 100, st = streaks(t);
+  const naf = NAF.reduce((a, [x, n, c]) => a + (e['n' + x] ? c : 0), 0);
+  const label = td === 0 ? 'اليوم' : td === -1 ? 'أمس' : new Intl.DateTimeFormat('ar-EG', { day: 'numeric', month: 'long' }).format(d);
+  return {
+    head: hdr('تتبع الصلوات', '<span class="ib" style="width:auto;padding:0 14px;font-size:14px;border-radius:999px">المستوى ' + num(lvl) + '</span>'),
+    body: `<div class="gems">${GEMS.map((g, i) => `<span class="${i === (lvl - 1) % GEMS.length ? 'on' : ''}">${g}</span>`).join('')}</div>
+    <div class="prog" style="margin:0 0 16px"><i style="width:${prog}%"></i></div>
+    <div class="card"><div class="days"><button class="ib" data-tday="-1" aria-label="اليوم السابق">›</button><b>${label}</b><button class="ib" data-tday="1" ${td >= 0 ? 'disabled style="opacity:.3"' : ''} aria-label="اليوم التالي">‹</button></div>
+    <div class="circ">${PR.map(([p, n]) => `<div><button class="chk${e[p] ? ' on' : ''}" data-tchk="${p}" style="width:48px;height:48px">${e[p] ? '✓' : ''}</button>${n}</div>`).join('')}</div></div>
+    <div class="card"><h3>النوافل <span class="muted" style="float:left">${num(naf)} / ١٢</span></h3><div class="circ">${NAF.map(([x, n, c]) => `<div><button class="chk${e['n' + x] ? ' on' : ''}" data-tchk="n${x}" style="width:44px;height:44px;font-size:16px">${e['n' + x] ? '✓' : num(c)}</button>${n}</div>`).join('')}</div></div>
+    ${calCard(t)}${badgeCard(t, st)}
+    <div class="card"><h3>الهدف اليومي</h3><div class="stats"><div><b>🔥 ${num(st.cur)} يوم</b><span>السلسلة الحالية</span></div><div><b>🏅 ${num(st.best)} يوم</b><span>أطول سلسلة</span></div><div><b>⭐ ${num(xp)}</b><span>النقاط</span></div></div>
+    <div class="muted" style="margin-top:10px">كل فرض بـ ١٠ نقاط وكل نافلة بـ ٣. كل ١٥٠ نقطة مستوى جديد.</div></div>`
+  };
+};
+
+V.alarms = () => {
+  const a = store.get('alarm', { pre: true, preMin: 15, at: true, iqama: true, iqMin: 10, audio: true, kahf: true });
+  const sw = (k, label, sub) => `<label class="sw"><span>${label}${sub ? `<br><span class="muted">${sub}</span>` : ''}</span><input type="checkbox" data-alarm="${k}" ${a[k] ? 'checked' : ''}></label>`;
+  const perm = ('Notification' in window) ? Notification.permission : 'unsupported';
+  return {
+    head: hdr('المنبهات', ico('#/settings', '⚙️', 'الإعدادات')),
+    body: `<div class="card"><h3>التنبيهات</h3>${sw('pre', 'تنبيه قبل الصلاة', 'قبل كل صلاة بـ ' + num(a.preMin) + ' دقيقة')}${sw('at', 'تنبيه وقت الأذان')}${sw('iqama', 'تنبيه الإقامة', 'بعد الأذان بـ ' + num(a.iqMin) + ' دقيقة')}${sw('audio', 'تشغيل صوت الأذان داخل التطبيق')}${sw('kahf', 'تذكير الجمعة', 'سورة الكهف والإكثار من الصلاة على النبي ﷺ، الجمعة الساعة ٩ صباحا')}</div>
+    <div class="card"><h3>دقايق التنبيه قبل الصلاة</h3><div class="chips">${[5, 10, 15, 20, 30].map(n => `<button class="chip${a.preMin === n ? ' on' : ''}" data-premin="${n}">${num(n)}</button>`).join('')}</div>
+    <h3>دقايق الإقامة بعد الأذان</h3><div class="chips">${[5, 10, 15, 20, 25].map(n => `<button class="chip${a.iqMin === n ? ' on' : ''}" data-iqmin="${n}">${num(n)}</button>`).join('')}</div></div>
+    <a class="tile wide" style="margin-bottom:14px" href="#/ramadan"><span class="e">🌙</span>رمضان والسحور</a>
+    <div class="card"><h3>إذن الإشعارات</h3><div class="sub">الحالة: ${perm === 'granted' ? 'مفعّل ✓' : perm === 'denied' ? 'مرفوض من إعدادات المتصفح' : perm === 'unsupported' ? 'غير مدعوم' : 'لم يُفعّل بعد'}</div>
+    <button class="btn" data-perm style="margin-top:10px">تفعيل الإشعارات</button><button class="btn g" data-testalarm style="margin-top:10px">جرب تنبيه الآن</button>
+    <div class="muted" style="margin-top:12px">ملاحظة صادقة: التنبيهات في نسخة الويب بتشتغل لما التطبيق يكون مفتوح أو شغال في الخلفية. للتنبيه المضمون والأذان بصوت المشاري والتطبيق مقفول، هنعمل نسخة أندرويد (APK) في الخطوة الجاية.</div></div>`
+  };
+};
+
+V.ramadan = async () => {
+  const sa = store.get('suhoor', { on: true, min: 45 }); let body;
+  const inR = day && day.hm === 9;
+  let table = '<div class="sub center">بحمّل الجدول…</div>';
+  try {
+    const hy = day ? (day.hm > 9 ? day.hy + 1 : day.hy) : 1448, key = `ram.${methodFor()}.${place.lat.toFixed(1)}.${place.lon.toFixed(1)}.${hy}`;
+    let rows = store.get(key);
+    if (!rows) { const r = await fetch(`https://api.aladhan.com/v1/hijriCalendar/${hy}/9?latitude=${place.lat}&longitude=${place.lon}&method=${methodFor()}`); const j = await r.json(); rows = j.data.map(x => [x.date.hijri.day, x.date.gregorian.date, x.timings.Fajr, x.timings.Maghrib]); store.set(key, rows); }
+    const first = rows[0][1].split('-'), gd = new Date(+first[2], +first[1] - 1, +first[0]), left = Math.ceil((gd - new Date()) / 864e5);
+    body = `<div class="card center"><div class="sub">${inR ? 'رمضان مبارك 🌙' : left > 0 ? 'باقي على رمضان تقريبا' : 'رمضان'}</div>${!inR && left > 0 ? `<div class="big">${num(left)} يوم</div>` : ''}<div class="sub">${hy} هـ</div></div>`;
+    table = `<div class="card"><h3>إمساكية رمضان · ${place.name}</h3><div class="list">${rows.map(r => `<div class="li"><span>${num(r[0])} رمضان · ${num(+r[1].slice(0, 2)) + '/' + num(+r[1].slice(3, 5))}</span><span class="m">إمساك ${to12(r[2])} · إفطار ${to12(r[3])}</span></div>`).join('')}</div></div>`;
+  } catch (e) { body = ''; table = '<div class="card sub center">تعذر تحميل الإمساكية. تأكد من الاتصال.</div>'; }
+  return { head: hdr('رمضان', '', true), body: `${body}<div class="card"><label class="sw"><span>منبه السحور<br><span class="muted">قبل أذان الفجر بـ ${num(sa.min)} دقيقة، في رمضان فقط</span></span><input type="checkbox" data-suhoor="on" ${sa.on ? 'checked' : ''}></label><div class="chips">${[20, 30, 45, 60, 90].map(n => `<button class="chip${sa.min === n ? ' on' : ''}" data-suhmin="${n}">${num(n)}</button>`).join('')}</div>
+  <div class="muted">صوت المسحراتي هيتضاف مع نسخة الأندرويد، والمنبه شغال في رمضان تلقائيا حسب موقعك.</div></div>${table}` };
+};
+V.tasbih = () => {
+  const items = ['سُبْحَانَ اللَّهِ', 'الْحَمْدُ لِلَّهِ', 'اللَّهُ أَكْبَرُ', 'لَا إِلَهَ إِلَّا اللَّهُ', 'أَسْتَغْفِرُ اللَّهَ', 'سُبْحَانَ اللَّهِ وَبِحَمْدِهِ', 'اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ', 'لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ'];
+  const s = store.get('tas', { i: 0, c: {}, t: 33 }); const c = s.c[s.i] || 0;
+  return {
+    head: hdr('تسبيح', `<button class="ib" data-tasreset aria-label="تصفير">↻</button>`, true),
+    body: `<div class="card center"><div style="display:flex;justify-content:space-between;align-items:center"><button class="ib" data-tasnav="-1">›</button><span style="font-family:AmiriQuran,serif;font-size:26px;flex:1">${items[s.i]}</span><button class="ib" data-tasnav="1">‹</button></div></div>
+    <div class="chips" style="justify-content:center">${[33, 99, 100, 0].map(n => `<button class="chip${s.t === n ? ' on' : ''}" data-tast="${n}">${n ? 'من ' + num(n) : 'مفتوح'}</button>`).join('')}</div>
+    <button class="tas" id="tasbtn"><span class="n" id="tasn">${num(c)}</span><span class="muted" id="tasz">${s.t ? 'الدورة ' + num(c % s.t) + ' / ' + num(s.t) : ''}</span>
+    <div class="strand"><div class="cord"></div><div class="in" id="strand">${'<div class="bead"></div>'.repeat(14)}</div></div><span class="muted">اضغط للعد</span></button>`
+  };
+};
+let qibla = { heading: null };
+V.qibla = () => {
+  const r = Math.PI / 180, dl = (39.8262 - place.lon) * r;
+  const b = ((Math.atan2(Math.sin(dl), Math.cos(place.lat * r) * Math.tan(21.4225 * r) - Math.sin(place.lat * r) * Math.cos(dl)) / r) + 360) % 360;
+  const names = ['شمال', 'شمال شرق', 'شرق', 'جنوب شرق', 'جنوب', 'جنوب غرب', 'غرب', 'شمال غرب'];
+  window.__qb = b;
+  return { head: hdr('القبلة', '', true), body: `<div class="center"><div class="compass" id="cmp"><div class="ar" id="qar" style="transform:rotate(${b}deg)"><span>🕋</span></div></div><div class="big">${num(Math.round(b))}°</div><div class="sub">${names[Math.round(b / 45) % 8]} من ${place.name}، مقاسة من الشمال مع عقارب الساعة</div><button class="btn" data-compass style="margin-top:12px">شغّل البوصلة</button><div class="muted" id="cmsg" style="margin-top:8px"></div></div>` };
+};
+V.settings = () => ({
+  head: hdr('الإعدادات', '', true),
+  body: `<div class="card list"><a href="#/city">المدينة<span class="m">${place.name}</span></a><a href="#/alarms">المنبهات<span class="m">›</span></a><a href="#/ramadan">رمضان والسحور<span class="m">›</span></a>
+  <a href="https://t.me/+201061428522" target="_blank" rel="noopener">تواصل والدعم (تيليجرام)<span class="m">↗</span></a></div>
+  <div class="card"><h3>طريقة حساب المواقيت</h3><div class="chips">${METHODS.map(m => `<button class="chip${store.get('method', 0) === m[0] ? ' on' : ''}" data-method="${m[0]}">${m[1]}</button>`).join('')}</div><div class="muted">الوضع التلقائي بيختار الطريقة المناسبة لبلدك.</div></div>
+  <div class="card"><button class="btn" data-share style="width:100%">مشاركة التطبيق مع الأصحاب</button>
+  <button class="btn g hide" id="inst" data-install style="width:100%;margin-top:10px">ثبّت التطبيق على الشاشة الرئيسية</button></div>
+  <div class="center muted">جميع الحقوق محفوظة © محمد مجدي</div>`
+});
+
+/* ---------- router ---------- */
+const NAV = [['prayers', '🕌', 'الصلوات'], ['quran', '📖', 'القرآن'], ['adhkar', '🤲', 'الأذكار'], ['alarms', '⏰', 'المنبهات'], ['track', '✅', 'تتبع الصلوات']];
+async function render() {
+  const h = (location.hash || '#/prayers').slice(2).split('/'); const r = h[0] || 'prayers';
+  let v;
+  try {
+    if (r === 'adhkar') v = h[1] === 'g' ? await V.group(h[2]) : h[1] === 'c' ? await V.cat(h[2]) : await V.adhkar();
+    else if (r === 'ramadan') v = await V.ramadan();
+    else if (r === 'quran') v = h[1] === 'p' ? await V.reader(h[2]) : h[1] === 's' ? await V.surah(h[2]) : h[1] === 'marks' ? await V.marks() : h[1] === 'search' ? await V.qsearch() : h[1] === 'wird' ? await V.wird() : await V.quran();
+    else v = (V[r] || V.prayers)();
+  } catch (e) { v = { head: hdr('حياتك في الصلاة'), body: '<div class="card center sub">تعذر التحميل. تأكد من الاتصال وجرب تاني.</div>' }; }
+  const old = $('#top'); if (old) old.remove();
+  $('#view').insertAdjacentHTML('beforebegin', v.head);
+  $('#view').innerHTML = v.body;
+  const top = ['prayers', 'quran', 'adhkar', 'alarms', 'track'].includes(r) ? r : (r === 'city' || r === 'settings' ? 'prayers' : r === 'tasbih' || r === 'qibla' ? 'adhkar' : r);
+  $('#nav').innerHTML = NAV.map(([k, e, n]) => `<a href="#/${k}" class="${top === k ? 'on' : ''}"><span class="i">${e}</span>${n}</a>`).join('');
+  if (!(h[1] === 'p')) window.scrollTo(0, 0);
+  if (r === 'tasbih') tasInit();
+}
+window.addEventListener('hashchange', render);
+
+/* ---------- events ---------- */
+document.addEventListener('click', async e => {
+  const t = e.target.closest('[data-chk],[data-snd],[data-city],[data-geo],[data-dh],[data-dreset],[data-qtab],[data-mark],[data-qs],[data-wdone],[data-ppd],[data-tday],[data-tchk],[data-alarm],[data-premin],[data-iqmin],[data-perm],[data-testalarm],[data-tasnav],[data-tast],[data-tasreset],[data-compass],[data-share],[data-install],[data-suhoor],[data-suhmin],[data-method]');
+  if (!t) return; const d = t.dataset;
+  if (d.chk) { const a = trk(), k = iso(); a[k] = a[k] || {}; a[k][d.chk] = !a[k][d.chk]; setTrk(a); buzz(); render(); }
+  else if (d.snd) { const s = store.get('snd', {}); s[d.snd] = s[d.snd] === false ? true : false; store.set('snd', s); render(); }
+  else if (d.city) { const c = CITIES.find(x => x[0] === d.city); place = { id: c[0], name: c[1], lat: c[2], lon: c[3] }; store.set('place', place); refreshTimes(); }
+  else if (d.geo !== undefined) {
+    const m = $('#geomsg'); m.textContent = 'بحدد موقعك…';
+    navigator.geolocation ? navigator.geolocation.getCurrentPosition(p => { place = { id: 'gps', name: 'موقعي', lat: p.coords.latitude, lon: p.coords.longitude }; store.set('place', place); location.hash = '#/prayers'; refreshTimes(); }, () => m.textContent = 'مقدرتش أحدد موقعك. اختار مدينتك من القايمة.', { timeout: 10000 }) : m.textContent = 'المتصفح مش بيدعم تحديد الموقع';
+  }
+  else if (d.dh) { const [id, i] = d.dh.split(':'); const c = AD.find(x => x.id === +id); const st = store.get('ad.' + id, { d: iso(), c: {} }); const tot = c.items[i].count || 1; if ((st.c[i] || 0) < tot) { st.c[i] = (st.c[i] || 0) + 1; st.d = iso(); store.set('ad.' + id, st); buzz(10); render(); } }
+  else if (d.dreset) { store.set('ad.' + d.dreset, { d: iso(), c: {} }); render(); }
+  else if (d.qtab) { store.set('qtab', d.qtab); render(); }
+  else if (d.mark) { const m = store.get('marks', []), n = +d.mark, i = m.indexOf(n); i < 0 ? m.push(n) : m.splice(i, 1); store.set('marks', m); render(); }
+  else if (d.qs) { store.set('qs', Math.max(18, Math.min(44, store.get('qs', 27) + +d.qs))); render(); }
+  else if (d.wdone) { const n = +d.wdone, p = store.get('wirdp', { d: iso(), n: 0 }); if (p.d !== iso()) { p.d = iso(); p.n = 0; } p.n++; store.set('wirdp', p); store.set('wirdpos', Math.min(604, n + 1)); toast('تم تسجيل الصفحة ✓'); render(); }
+  else if (d.ppd) { const w = store.get('wird', { ppd: 5 }); w.ppd = +d.ppd; store.set('wird', w); render(); }
+  else if (d.tday) { store.set('tday', Math.min(0, store.get('tday', 0) + +d.tday)); render(); }
+  else if (d.tchk) { const a = trk(), dt = new Date(); dt.setDate(dt.getDate() + store.get('tday', 0)); const k = iso(dt); a[k] = a[k] || {}; a[k][d.tchk] = !a[k][d.tchk]; setTrk(a); buzz(); render(); }
+  else if (d.alarm) { const a = store.get('alarm', { pre: true, preMin: 15, at: true, iqama: true, iqMin: 10, audio: true, kahf: true }); a[d.alarm] = t.checked; store.set('alarm', a); }
+  else if (d.premin) { const a = store.get('alarm', {}); a.preMin = +d.premin; store.set('alarm', a); render(); }
+  else if (d.iqmin) { const a = store.get('alarm', {}); a.iqMin = +d.iqmin; store.set('alarm', a); render(); }
+  else if (d.perm !== undefined) { if ('Notification' in window) { await Notification.requestPermission(); render(); } }
+  else if (d.testalarm !== undefined) { notify('تجربة التنبيه', 'التنبيهات شغالة ✓'); }
+  else if (d.tasnav) { const s = store.get('tas', { i: 0, c: {}, t: 33 }); s.i = (s.i + +d.tasnav + 8) % 8; store.set('tas', s); render(); }
+  else if (d.tast !== undefined) { const s = store.get('tas', { i: 0, c: {}, t: 33 }); s.t = +d.tast; store.set('tas', s); render(); }
+  else if (d.tasreset !== undefined) { const s = store.get('tas', { i: 0, c: {}, t: 33 }); s.c[s.i] = 0; store.set('tas', s); render(); }
+  else if (d.compass !== undefined) startCompass();
+  else if (d.share !== undefined) {
+    const url = location.href.split('#')[0];
+    if (navigator.share) { try { await navigator.share({ title: 'حياتك في الصلاة', text: 'تطبيق مواقيت الصلاة والأذكار والمصحف', url }); } catch (x) {} }
+    else { try { await navigator.clipboard.writeText(url); toast('تم نسخ لينك التطبيق'); } catch (x) { toast(url); } }
+  }
+  else if (d.suhoor) { const x = store.get('suhoor', { on: true, min: 45 }); x.on = t.checked; store.set('suhoor', x); }
+  else if (d.suhmin) { const x = store.get('suhoor', { on: true, min: 45 }); x.min = +d.suhmin; store.set('suhoor', x); render(); }
+  else if (d.method !== undefined) { store.set('method', +d.method); refreshTimes(); }
+  else if (d.install !== undefined && deferred) { deferred.prompt(); deferred = null; }
+});
+document.addEventListener('input', async e => {
+  if (e.target.id === 'q') {
+    await loadAd(); const v = e.target.value.trim().replace(/[\u064B-\u0652\u0670]/g, ''); const out = $('#qr');
+    if (v.length < 2) { out.innerHTML = ''; return; }
+    out.innerHTML = AD.filter(c => c.title.replace(/[\u064B-\u0652\u0670]/g, '').includes(v) || c.items.some(i => i.text.replace(/[\u064B-\u0652\u0670]/g, '').includes(v))).slice(0, 30).map(c => `<a href="#/adhkar/c/${c.id}">${c.title}<span class="m">›</span></a>`).join('') || '<div class="muted" style="padding:10px">مفيش نتائج</div>';
+  }
+  if (e.target.id === 'qs2') {
+    const q = await loadQu(); const v = e.target.value.trim().replace(/[\u064B-\u0652\u0670\u0671]/g, ''); const out = $('#qsr');
+    if (v.length < 3) { out.innerHTML = ''; return; }
+    const res = []; q.pages.forEach((p, pi) => p.forEach(([s, a, t]) => { if (res.length < 40 && t.replace(/[\u064B-\u0652\u0670\u0671\u06E1\u0653-\u0655]/g, '').replace(/[ٱأإآ]/g, 'ا').includes(v.replace(/[ٱأإآ]/g, 'ا'))) res.push([s, a, t, pi + 1]); }));
+    out.innerHTML = res.map(([s, a, t, p]) => `<a href="#/quran/p/${p}" style="display:block"><b>${q.surahs[s - 1].name} ${num(a)}</b><div style="font-family:AmiriQuran,serif;font-size:18px;line-height:2">${t}</div></a>`).join('') || '<div class="muted" style="padding:10px">مفيش نتائج</div>';
+  }
+});
+
+/* tasbih beads */
+let off = 0;
+function tasInit() {
+  const b = $('#tasbtn'); if (!b) return;
+  let sx = null;
+  const bump = () => {
+    const s = store.get('tas', { i: 0, c: {}, t: 33 }); s.c[s.i] = (s.c[s.i] || 0) + 1; store.set('tas', s);
+    const c = s.c[s.i]; $('#tasn').textContent = num(c); $('#tasz').textContent = s.t ? 'الدورة ' + num(c % s.t) + ' / ' + num(s.t) : '';
+    off += 70; const el = $('#strand'); el.style.transform = `translateX(${off % 280}px)`;
+    if (off % 280 === 0) setTimeout(() => { el.style.transition = 'none'; el.style.transform = 'translateX(0)'; void el.offsetWidth; el.style.transition = ''; }, 190);
+    buzz(s.t && c % s.t === 0 ? 120 : 12);
+    if (s.t && c % s.t === 0) toast('أتممت ' + num(c / s.t) + ' دورة 🎉');
+  };
+  b.onclick = bump;
+  b.addEventListener('touchstart', ev => { sx = ev.touches[0].clientX; }, { passive: true });
+  b.addEventListener('touchmove', ev => { if (sx != null && Math.abs(ev.touches[0].clientX - sx) > 60) { sx = ev.touches[0].clientX; bump(); } }, { passive: true });
+}
+/* compass */
+let cmpOn = false;
+async function startCompass() {
+  const D = window.DeviceOrientationEvent, m = $('#cmsg');
+  try { if (D && D.requestPermission) { if ((await D.requestPermission()) !== 'granted') { m.textContent = 'محتاج إذن الحساسات'; return; } } } catch (e) { m.textContent = 'مقدرتش أشغل البوصلة'; return; }
+  if (!D) { m.textContent = 'الجهاز مش بيدعم البوصلة'; return; }
+  if (cmpOn) return; cmpOn = true; m.textContent = 'لف الموبايل لحد ما السهم يبقى لفوق';
+  const h = ev => { const v = typeof ev.webkitCompassHeading === 'number' ? ev.webkitCompassHeading : (ev.alpha != null ? (360 - ev.alpha) % 360 : null); if (v == null) return; const ar = $('#qar'); if (!ar) return; const rot = window.__qb - v; ar.style.transform = `rotate(${rot}deg)`; const dd = Math.abs(((rot % 360) + 540) % 360 - 180); $('#cmp').classList.toggle('ok', 180 - dd < 5); };
+  window.addEventListener('deviceorientationabsolute', h, true); window.addEventListener('deviceorientation', h, true);
+}
+
+/* ---------- notifications ---------- */
+let swReg = null, fired = {}, audio = null;
+async function notify(title, body) {
+  try { if ('Notification' in window && Notification.permission === 'granted') { if (swReg) swReg.showNotification(title, { body, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', tag: title, dir: 'rtl', lang: 'ar', vibrate: [200, 100, 200] }); else new Notification(title, { body }); } else toast(title + ': ' + body); } catch (e) { toast(title); }
+}
+function playMasa() { try { const a = new Audio('audio/masaharati.mp3'); a.play().catch(() => {}); } catch (e) {} }
+function playAdhan() { const a = store.get('alarm', { audio: true }); if (!a.audio) return; try { audio = audio || new Audio('audio/adhan.mp3'); audio.currentTime = 0; audio.play().catch(() => {}); } catch (e) {} }
+function checkAlarms() {
+  const g = new Date(), kid = 'kahf' + iso(g);
+  if (g.getDay() === 5 && g.getHours() === 9 && g.getMinutes() < 2 && !fired[kid] && store.get('alarm', { kahf: true }).kahf !== false) { fired[kid] = 1; notify('يوم الجمعة', 'لا تنسَ قراءة سورة الكهف والإكثار من الصلاة على النبي ﷺ'); }
+  if (day && day.hm === 9) {
+    const sa = store.get('suhoor', { on: true, min: 45 }), nowS = nowSecs(day.tz), st = secs(day.t.Fajr) - sa.min * 60, id = 'suh' + iso();
+    if (sa.on && nowS >= st && nowS < st + 45 && !fired[id]) { fired[id] = 1; notify('السحور 🌙', `باقي ${num(sa.min)} دقيقة على أذان الفجر`); playMasa(); }
+  }
+  if (!day) return; const a = store.get('alarm', { pre: true, preMin: 15, at: true, iqama: true, iqMin: 10 }), snd = store.get('snd', {}), now = nowSecs(day.tz);
+  PR.forEach(([k, n]) => {
+    if (snd[k] === false) return; const t = secs(day.t[k]);
+    const ev = [['pre', t - a.preMin * 60, `بعد ${num(a.preMin)} دقيقة صلاة ${n}`, false], ['at', t, `حان الآن موعد أذان ${n}`, true], ['iqama', t + a.iqMin * 60, `إقامة صلاة ${n}`, false]];
+    ev.forEach(([w, s, msg, snd2]) => { const id = iso() + k + w; if (a[w] && now >= s && now < s + 45 && !fired[id]) { fired[id] = 1; notify('حياتك في الصلاة', msg); if (snd2) playAdhan(); } });
+  });
+}
+setInterval(() => {
+  const el = $('#cd'); if (day && el) { const np = nextPrayer(); el.textContent = fmtHMS(np.left); const bar = $('#cdbar'); if (bar) bar.style.width = Math.max(0, Math.min(100, 100 - np.left / np.span * 100)) + '%'; if (np.left === 0 || np.left > 86300) refreshTimes(); }
+  checkAlarms();
+}, 1000);
+
+/* ---------- boot ---------- */
+let deferred = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; const b = $('#inst'); if (b) b.classList.remove('hide'); });
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').then(r => { swReg = r; }).catch(() => {});
+if (!location.hash) location.hash = '#/prayers';
+render(); refreshTimes();
