@@ -199,7 +199,8 @@ V.adhkar = async () => {
   const tile = (g, wide) => `<a class="tile${wide ? ' wide' : ''}" href="#/adhkar/g/${g[0]}"><span class="e">${g[1]}</span>${g[2]}</a>`;
   return {
     head: hdr('الأذكار', ico('#/tasbih', '📿', 'تسبيح') + ico('#/alarms', '🔔', 'المنبهات')),
-    body: `<a class="tile wide" style="margin-bottom:12px" href="#/adhkar/c/1"><span class="e">🌅</span>أذكار الصباح والمساء</a>
+    body: `<div class="card"><h3>أذكار من القرآن بصوت مشاري العفاسي</h3><div class="muted" style="margin-bottom:8px">محتاجة إنترنت</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="chip" data-qa="255:255">آية الكرسي</button><button class="chip" data-qa="6222:6225">الإخلاص</button><button class="chip" data-qa="6226:6230">الفلق</button><button class="chip" data-qa="6231:6236">الناس</button></div></div>
+      <a class="tile wide" style="margin-bottom:12px" href="#/adhkar/c/1"><span class="e">🌅</span>أذكار الصباح والمساء</a>
       <a class="tile wide" style="margin-bottom:12px" href="#/adhkar/c/27"><span class="e">🤲</span>الأذكار بعد الصلاة</a>
       <div class="grid">${GROUPS.map(g => tile(g)).join('')}</div>
       <div class="card" style="margin-top:14px"><h3>بحث في كل الأذكار</h3><input type="search" id="q" placeholder="اكتب كلمة…"><div class="list" id="qr"></div></div>
@@ -389,7 +390,7 @@ V.settings = () => ({
    <div class="card"><h3>اقتراحاتك</h3><div class="muted" style="line-height:1.9;margin-bottom:10px">عندك فكرة أو ميزة نفسك تشوفها في التطبيق؟ أو لقيت مشكلة؟ ابعتلنا على تيليجرام أو الإيميل، وكل اقتراح بنقراه ونحاول نضيفه في التحديثات الجاية.</div>
    <a class="btn" style="display:block;text-align:center;text-decoration:none" href="https://t.me/MGSNC" target="_blank" rel="noopener">ابعت اقتراح على تيليجرام</a>
    <a class="btn g" style="display:block;text-align:center;text-decoration:none;margin-top:10px" href="mailto:mojshshm29@gmail.com?subject=%D8%A7%D9%82%D8%AA%D8%B1%D8%A7%D8%AD%20%D9%84%D8%AA%D8%B7%D8%A8%D9%8A%D9%82%20%D8%AD%D9%8A%D8%A7%D8%AA%D9%83%20%D9%81%D9%8A%20%D8%A7%D9%84%D8%B5%D9%84%D8%A7%D8%A9">ابعت اقتراح بالإيميل</a></div>
-   <div class="card"><h3>المصادر والشكر</h3><div class="muted" style="line-height:1.9;font-size:12.5px">الأذكار: حصن المسلم (مشروع Adhkar-json) · المصحف: api.alquran.cloud (رسم عثماني) · المواقيت: Aladhan · الخطوط: Amiri Quran وCairo (OFL) · الموقع: OpenStreetMap.<br>أصوات الأذان من ويكيميديا كومنز: «The Adhan» بصوت Atcovi (CC BY-SA 4.0) · «Call to prayer» بصوت صباح فخري (ملكية عامة) · «Adhan, Great Mosque of Mecca» لـ Seyfula Islam (CC BY 3.0).</div></div>
+   <div class="card"><h3>المصادر والشكر</h3><div class="muted" style="line-height:1.9;font-size:12.5px">تلاوة مشاري العفاسي: Islamic Network (alquran.cloud) · أذان من الإنترنت: أرشيف الإنترنت، مجموعة Adhan Notifications · الأذكار: حصن المسلم (مشروع Adhkar-json) · المصحف: api.alquran.cloud (رسم عثماني) · المواقيت: Aladhan · الخطوط: Amiri Quran وCairo (OFL) · الموقع: OpenStreetMap.<br>أصوات الأذان من ويكيميديا كومنز: «The Adhan» بصوت Atcovi (CC BY-SA 4.0) · «Call to prayer» بصوت صباح فخري (ملكية عامة) · «Adhan, Great Mosque of Mecca» لـ Seyfula Islam (CC BY 3.0).</div></div>
    <div class="card"><button class="btn" data-share style="width:100%">مشاركة التطبيق مع الأصحاب</button>
   <button class="btn g hide" id="inst" data-install style="width:100%;margin-top:10px">ثبّت التطبيق على الشاشة الرئيسية</button></div>`
 });
@@ -423,7 +424,7 @@ window.addEventListener('hashchange', () => { const hh = (location.hash || '#/pr
 
 /* ---------- events ---------- */
 document.addEventListener('click', async e => {
-  const t = e.target.closest('[data-chk],[data-snd],[data-city],[data-geo],[data-dh],[data-dreset],[data-qtab],[data-mark],[data-qs],[data-wdone],[data-ppd],[data-tday],[data-tchk],[data-alarm],[data-premin],[data-iqmin],[data-aud],[data-arate],[data-off],[data-school],[data-sprev],[data-asound],[data-aprev],[data-loc],[data-retry],[data-sh],[data-shclose],[data-testalarm],[data-tasnav],[data-tast],[data-tasreset],[data-compass],[data-share],[data-install],[data-suhoor],[data-suhmin],[data-method]');
+  const t = e.target.closest('[data-chk],[data-snd],[data-city],[data-geo],[data-dh],[data-dreset],[data-qtab],[data-mark],[data-qs],[data-wdone],[data-ppd],[data-tday],[data-tchk],[data-alarm],[data-premin],[data-iqmin],[data-aud],[data-qa],[data-arate],[data-off],[data-school],[data-sprev],[data-asound],[data-aprev],[data-loc],[data-retry],[data-sh],[data-shclose],[data-testalarm],[data-tasnav],[data-tast],[data-tasreset],[data-compass],[data-share],[data-install],[data-suhoor],[data-suhmin],[data-method]');
   if (Date.now() - lpAt < 700 && e.target.closest('[data-chk],[data-tchk]')) { return; }
   if (!t) return; const d = t.dataset;
   if (d.retry !== undefined) { if (/^#\/prayers/.test(location.hash) || !location.hash) refreshTimes(); else render(); return; }
@@ -450,6 +451,7 @@ document.addEventListener('click', async e => {
   else if (d.iqmin) { const a = store.get('alarm', {}); a.iqMin = +d.iqmin; store.set('alarm', a); render(); }
   else if (d.loc !== undefined) { navigator.geolocation ? navigator.geolocation.getCurrentPosition(() => { toast('تم السماح بالموقع ✓'); render(); }, () => toast('الموقع مرفوض. فعّله من إعدادات المتصفح.'), { timeout: 10000 }) : toast('الجهاز مش بيدعم الموقع'); }
   else if (d.aud) { playAud(d.aud, d.af); }
+  else if (d.qa) { playQA(d.qa); }
   else if (d.arate !== undefined) { adRate = adRate === 1 ? 1.25 : adRate === 1.25 ? 1.5 : adRate === 1.5 ? 0.75 : 1; if (adA) adA.playbackRate = adRate; render(); }
   else if (d.sprev) { playSound(d.sprev); }
   else if (d.school !== undefined) { store.set('school', +d.school); refreshTimes(); }
@@ -530,12 +532,20 @@ function playAud(key, file) {
   try { adA = new Audio(ADB + file); adA.playbackRate = adRate; adA.onended = () => { curAud = null; adA = null; render(); }; adA.onerror = () => { curAud = null; adA = null; toast('الصوت محتاج إنترنت'); render(); }; adA.play().catch(() => { curAud = null; render(); }); } catch (e) { curAud = null; }
   render();
 }
-const SOUNDS = [['aaqib', 'أذان هادي', 'بصوت عاقب عزيز'], ['sabah', 'صباح فخري', 'سوريا، المدرسة الحلبية'], ['makkah', 'المسجد الحرام', 'مكة المكرمة']];
+function playQA(r) {
+  const [a, b] = r.split(':').map(Number); stopAud(); stopAdhan(); let n = a;
+  const next = () => { if (n > b) { adA = null; return; } try { adA = new Audio('https://cdn.islamic.network/quran/audio/64/ar.alafasy/' + n + '.mp3'); n++; adA.onended = next; adA.onerror = () => { adA = null; toast('الصوت محتاج إنترنت'); }; adA.play().catch(() => toast('اضغط تاني لتشغيل الصوت')); } catch (e) {} };
+  next();
+}
+const SOUNDS = [['aaqib', 'أذان هادي', 'بصوت عاقب عزيز'], ['sabah', 'صباح فخري', 'سوريا، المدرسة الحلبية'], ['makkah', 'المسجد الحرام', 'مكة المكرمة'],
+  ['r:Mishary_Rashid_al_Afasy_Fajr_Adhan', 'مشاري العفاسي', 'أذان الفجر، من الإنترنت'], ['r:Nasser_al_Qatami_Adhan', 'ناصر القطامي', 'السعودية، من الإنترنت'], ['r:Majed_al_Hamathani_Adhan', 'ماجد الهمذاني', 'من الإنترنت'], ['r:Ahmed_al_Imadi_Adhan', 'أحمد العمادي', 'من الإنترنت']];
+const ARC = 'https://archive.org/download/adhan.notifications/';
+const adUrl = k => k.startsWith('r:') ? ARC + k.slice(2) + '.mp3' : 'audio/adhan-' + k + '.mp3';
 let prevA = null;
 function stopAdhan() { try { if (audio) { audio.pause(); audio.currentTime = 0; } if (prevA) { prevA.pause(); prevA = null; } } catch (e) {} }
-function playSound(id) { stopAdhan(); try { const a = new Audio('audio/adhan-' + id + '.mp3'); prevA = a; a.onerror = () => toast('الصوت مش متاح دلوقتي'); a.play().catch(() => toast('اضغط تاني لتشغيل الصوت')); } catch (e) {} }
+function playSound(id) { stopAdhan(); try { const a = new Audio(adUrl(id)); prevA = a; a.onerror = () => toast('الصوت مش متاح دلوقتي'); a.play().catch(() => toast('اضغط تاني لتشغيل الصوت')); } catch (e) {} }
 function playMasa() { try { const a = new Audio('audio/masaharati.mp3'); a.play().catch(() => {}); } catch (e) {} }
-function playAdhan() { const a = store.get('alarm', { audio: true }); if (!a.audio) return; try { stopAdhan(); audio = new Audio('audio/adhan-' + (a.sound || 'aaqib') + '.mp3'); audio.play().catch(() => {}); } catch (e) {} }
+function playAdhan() { const a = store.get('alarm', { audio: true }); if (!a.audio) return; try { stopAdhan(); audio = new Audio(adUrl(a.sound || 'aaqib')); audio.play().catch(() => {}); } catch (e) {} }
 function checkAlarms() {
   const g = new Date(), kid = 'kahf' + iso(g);
   if (g.getDay() === 5 && g.getHours() === 9 && g.getMinutes() < 2 && !fired[kid] && store.get('alarm', { kahf: true }).kahf !== false) { fired[kid] = 1; notify('يوم الجمعة', 'لا تنسَ قراءة سورة الكهف والإكثار من الصلاة على النبي ﷺ'); }
