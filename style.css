@@ -200,3 +200,18 @@ body.home #view,body.home header#top{position:relative;z-index:1}
 .sv{display:block}nav a .i{display:grid;place-items:center;height:26px;margin-bottom:2px}nav a .i .sv{width:24px;height:24px}
 .ib.dk .sv{width:22px;height:22px}.mosque .mb .sv{width:46px;height:46px;color:#8a85a3}.prow .snd .sv{width:26px;height:26px}.loc .arr .sv{width:18px;height:18px}
 .chips .pill{white-space:nowrap;font-size:13px;padding:8px 14px}
+
+/* type scale (reference proportions) */
+html,body{font-size:15px}
+header h1{font-size:21px}
+.hh h2{font-size:20px;font-weight:700}.hh .cd{font-size:28px;font-weight:700}
+.hb .ib.dk{width:42px;height:42px}
+.hero .loc{font-size:15px;margin-top:10px}.hero .sub{font-size:12.5px}.hero .dt{margin:4px 0 12px}
+.chips .pill{font-size:12px;padding:6px 12px}.tk{width:17px;height:17px;font-size:10px}
+.prow{padding:12px 6px;gap:12px}.prow .n{font-size:16px;font-weight:600}.prow .t{font-size:14px;color:var(--ink2)}
+.prow .iq{font-size:11px}.prow .snd .sv{width:22px;height:22px}
+.card h3{font-size:15px}.sub{font-size:12.5px}
+.thirds div{font-size:11.5px}.thirds b{font-size:13px}
+nav a{font-size:10.5px}nav a .i .sv{width:22px;height:22px}
+.btn{font-size:14px}.list a{font-size:15px}
+.mosque .mb{width:80px;height:80px}.mosque .mb .sv{width:38px;height:38px}.mosque span{font-size:12px}
