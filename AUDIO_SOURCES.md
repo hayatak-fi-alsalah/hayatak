@@ -19,3 +19,7 @@
 - Performer: Mishary Rashid Alafasy.
 - Status: USER-SUPPLIED, commercial nasheed, licence NOT verified. Must be cleared with the rights holder or replaced before any Google Play release.
 - Used only as the Android notification sound for the 15-minutes-before-prayer reminder (native app only).
+
+## Mushaf pages and tafsir (not audio)
+- Mushaf pages: Madani 1405 print (604 pages, 15 lines), KFGQPC QCF page fonts + layout, via https://github.com/SakinaDevGroup/al_quran_madani (package sha256 5f224181...0e88). Package has no licence file; says used under QUL terms. Licence NOT verified: clear with KFGQPC/QUL before any Play release.
+- Tafsir Al-Muyassar (King Fahd Complex) via https://github.com/spa5k/tafsir_api (MIT for the API repo; the tafsir text licence not verified), loaded from jsDelivr and cached for offline use. Clear before Play.

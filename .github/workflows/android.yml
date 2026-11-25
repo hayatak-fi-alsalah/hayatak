@@ -17,7 +17,7 @@ jobs:
           cd android-app
           mkdir -p www
           cp ../index.html ../style.css ../app.js ../manifest.webmanifest www/
-          cp -r ../icons ../fonts ../data www/
+          cp -r ../icons ../fonts ../data ../mushaf www/
           npm install
           npx cap add android
           npx cap sync android

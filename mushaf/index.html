@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Mushaf Madani 1405</title>
+  <style>
+    :root {
+      --accent: #1f5e56;
+      --ink: #111111;
+      --bg: #ffffff;
+    }
+
+    /* The ornamental surah band and the basmala are colour fonts shared with
+       the KFGQPC Mushaf, so a surah opening looks the same in either one. */
+    @font-face {
+      font-family: 'SurahHeader';
+      src: url('fonts/surah-header.woff2') format('woff2');
+      font-display: block;
+    }
+
+    @font-face {
+      font-family: 'Basmala';
+      src: url('fonts/bismillah.woff2') format('woff2');
+      font-display: block;
+    }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      /* A page whose printed lines do not fit the sheet (landscape) scrolls,
+         exactly like the KFGQPC and IndoPak Mushafs — the text keeps its
+         reading size instead of being crushed into the short side. The
+         document itself is the scroller (`min-height`, not `height`), so a
+         page turn's window.scrollTo(0, 0) really does return to the top. */
+      min-height: 100%;
+      overflow-x: hidden;
+      background: var(--bg);
+      -webkit-tap-highlight-color: transparent;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    /* ── The page: rows of one fixed pitch, one per printed line. The pitch is
+       a multiple of the type size, the way a press leads its lines — not a
+       fifteenth of whatever screen the page happens to land on. One value
+       serves every screen: the two short pages that open the Mushaf are led
+       like a full one, a tall sheet keeps air above and below the block
+       instead of stretching fifteen lines edge to edge, and a short one
+       (landscape) keeps that same leading and scrolls. ── */
+    :root { --lines-per-page: 15; }
+
+    #quran-page {
+      width: 100%;
+      max-width: 820px;
+      min-height: 100vh;
+      margin: 0 auto;
+      /* Clear of the status bar / notch: the reader runs edge-to-edge, so the
+         top line would otherwise sit under the clock and the battery. */
+      padding:
+        max(calc(env(safe-area-inset-top, 0px) + 1.6vh), 3.6vh)
+        5vw
+        max(calc(env(safe-area-inset-bottom, 0px) + 1.4vh), 3.2vh);
+      display: flex;
+      flex-direction: column;
+      /* A page that does not fill its fifteen lines sits centred on the sheet. */
+      justify-content: center;
+      direction: rtl;
+      color: var(--ink);
+      background: var(--bg);
+      font-size: 30px;    /* replaced per page by fitPage() */
+      --row-pitch: 1.62;  /* line pitch, in ems of the page's own type size */
+    }
+
+    .row {
+      flex: 0 0 auto;
+      height: calc(var(--row-pitch) * 1em);
+      min-height: 0;
+      display: flex;
+      align-items: center;
+    }
+
+    /* ── Ayah line ──
+       Justified lines stretch edge to edge (the QCF glyphs are cut so that a
+       full line does exactly that); lines the layout marks as centred — the
+       opening of a surah, its closing line — sit in the middle instead. ── */
+    .line {
+      width: 100%;
+      display: flex;
+      flex-direction: row;
+      flex-wrap: nowrap;
+      align-items: baseline;
+      justify-content: space-between;
+      white-space: nowrap;
+      line-height: 1;
+    }
+
+    .row-centered .line {
+      justify-content: center;
+      gap: 0.26em;
+    }
+
+    .word { white-space: nowrap; cursor: pointer; }
+    .word.ayah-highlight {
+      background-color: color-mix(in srgb, var(--accent) 22%, transparent);
+      border-radius: 0.12em;
+    }
+
+    /* ── Surah header and basmala ──
+       Both are single ornamental glyphs whose ink sits at a known offset from
+       the baseline, so JS sizes them against their row and nudges them onto its
+       centre line (see ORNAMENT_METRICS / fitOrnaments). ── */
+    .row-surah, .row-basmala { justify-content: center; overflow: visible; }
+
+    .ornament {
+      display: block;
+      line-height: 1;
+      white-space: nowrap;
+      direction: ltr;
+    }
+
+    /* Both ornaments are colour fonts drawn as stacked layers. The 1405 print
+       is engraved, not painted, so every layer is recoloured to plain ink:
+       the band's two fill layers drop out (18 is the outer wash, 19 the panel
+       the linework sits on, so it takes the page colour) and the rest — frame,
+       filigree, name — become solid ink. Layer indices hold for all 114 names. */
+    @font-palette-values --header-ink {
+      font-family: 'SurahHeader';
+      base-palette: 0;
+      override-colors: 18 transparent, 19 #ffffff, 10 #111111, 11 #111111, 16 #111111, 13 #111111;
+    }
+    @font-palette-values --header-ink-dark {
+      font-family: 'SurahHeader';
+      base-palette: 0;
+      override-colors: 18 transparent, 19 #0d0f12, 10 #f1ece2, 11 #f1ece2, 16 #f1ece2, 13 #f1ece2;
+    }
+    @font-palette-values --basmala-ink {
+      font-family: 'Basmala';
+      base-palette: 0;
+      override-colors: 0 #111111, 2 #111111, 4 #111111, 5 #111111, 7 #111111, 15 #111111;
+    }
+    @font-palette-values --basmala-ink-dark {
+      font-family: 'Basmala';
+      base-palette: 0;
+      override-colors: 0 #f1ece2, 2 #f1ece2, 4 #f1ece2, 5 #f1ece2, 7 #f1ece2, 15 #f1ece2;
+    }
+
+    .surah-header { font-family: 'SurahHeader'; font-palette: --header-ink; }
+    .basmala { font-family: 'Basmala'; font-palette: --basmala-ink; color: var(--ink); }
+
+    :root.night .surah-header { font-palette: --header-ink-dark; }
+    :root.night .basmala { font-palette: --basmala-ink-dark; }
+
+    /* A zero-sized inline marker that reports where the baseline landed. */
+    .baseline-probe {
+      display: inline-block;
+      width: 0; height: 0;
+      vertical-align: baseline;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="quran-page"></div>
+
+  <script>
+    var quranData = null;
+    var currentPage = 1;
+    var currentFontStyle = null;
+
+    // Every one of the 114 surah-band glyphs measures the same, so its size is
+    // a constant here; the basmala varies by surah and ships its own numbers.
+    // All values are in em: `w` advance width, `h` ink height, `c` how far the
+    // middle of the ink sits above the baseline.
+    var SURAH_HEADER_METRICS = { w: 3.3028, h: 0.4104, c: 0 };
+
+    /// Each page of the 1405 print has its own QCF font: the glyph at a given
+    /// code point means a different word on every page, so the font must be
+    /// swapped together with the page.
+    function loadPageFont(pageNum) {
+      var padded = String(pageNum).padStart(3, '0');
+      var fontName = 'QCF_P' + padded;
+      if (currentFontStyle) { currentFontStyle.remove(); currentFontStyle = null; }
+      var style = document.createElement('style');
+      style.textContent =
+        "@font-face{font-family:'" + fontName + "';src:url('fonts/QCF_P" + padded +
+        ".woff2') format('woff2');font-display:block;}";
+      document.head.appendChild(style);
+      currentFontStyle = style;
+      return fontName;
+    }
+
+    function initializeData(pagesJsonObj) {
+      try {
+        quranData = typeof pagesJsonObj === 'string' ? JSON.parse(pagesJsonObj) : pagesJsonObj;
+        loadPage(currentPage);
+      } catch (e) {
+        document.getElementById('quran-page').textContent = 'Failed to parse data: ' + e.message;
+      }
+    }
+
+    function loadPage(pageNum) {
+      if (!quranData) return;
+      if (pageNum < 1 || pageNum > quranData.length) return;
+      currentPage = pageNum;
+      var pageData = quranData[pageNum - 1];
+      if (!pageData) return;
+
+      var fontName = loadPageFont(pageNum);
+      var container = document.getElementById('quran-page');
+      container.innerHTML = '';
+      container.style.fontFamily = "'" + fontName + "'";
+
+      var lines = pageData.l || [];
+      for (var i = 0; i < lines.length; i++) {
+        container.appendChild(renderLine(lines[i], pageNum));
+      }
+
+      // Measuring before the page font has arrived would size the page against
+      // the fallback font, so fit once now (for the first paint) and again as
+      // soon as the real glyphs are available.
+      fitPage();
+      if (document.fonts && document.fonts.load) {
+        document.fonts.load('30px "' + fontName + '"').then(fitPage).catch(fitPage);
+        document.fonts.ready.then(fitPage);
+      }
+    }
+
+    function renderLine(lineData, pageNum) {
+      var row = document.createElement('div');
+      row.className = 'row';
+
+      if (lineData.t === 's') {
+        row.className += ' row-surah';
+        row.appendChild(ornament('surah-header', lineData.n, SURAH_HEADER_METRICS));
+        return row;
+      }
+
+      if (lineData.t === 'b') {
+        row.className += ' row-basmala';
+        row.appendChild(ornament('basmala', lineData.g, lineData));
+        return row;
+      }
+
+      if (lineData.c) row.className += ' row-centered';
+      var line = document.createElement('div');
+      line.className = 'line';
+
+      // `r` holds [surah, ayah, wordCount] runs — expand them so each word
+      // knows the ayah it belongs to (taps, highlighting, reciting).
+      var glyphs = lineData.g || [];
+      var runs = lineData.r || [];
+      var owners = [];
+      for (var i = 0; i < runs.length; i++) {
+        for (var k = 0; k < runs[i][2]; k++) owners.push(runs[i]);
+      }
+      for (var w = 0; w < glyphs.length; w++) {
+        var own = owners[w] || [0, 0];
+        var span = document.createElement('span');
+        span.className = 'word';
+        span.textContent = glyphs[w];
+        span.dataset.surah = own[0];
+        span.dataset.ayah = own[1];
+        span.dataset.page = pageNum;
+        line.appendChild(span);
+      }
+      row.appendChild(line);
+      return row;
+    }
+
+    /// Picks the one font size at which the page reads like the print: the
+    /// densest line spans the full measure. Sizing by the measure rather than
+    /// by the screen height is what keeps a justified line full — shrink the
+    /// type to fit a short screen and `space-between` has to open holes between
+    /// the words to span the same measure. Measured once at a reference size
+    /// and scaled, so it costs a single layout pass instead of a search.
+    ///
+    /// The leading is not touched here: it stays at the one --row-pitch the CSS
+    /// sets, so a line is led the same whichever way the phone is held, and a
+    /// sheet too short to hold fifteen of them simply scrolls.
+    function fitPage() {
+      var page = document.getElementById('quran-page');
+      var lines = page.querySelectorAll('.line');
+      if (!lines.length) return;
+
+      // Measuring happens at a reference size; if the page font has not arrived
+      // yet every glyph measures zero, so the previous size has to be put back
+      // rather than leaving the page blown up at the reference size.
+      var previous = page.style.fontSize;
+      var REF = 100;
+      page.style.fontSize = REF + 'px';
+
+      var scale = Infinity;
+      for (var i = 0; i < lines.length; i++) {
+        var natural = 0;
+        var kids = lines[i].children;
+        for (var k = 0; k < kids.length; k++) natural += kids[k].getBoundingClientRect().width;
+        var avail = lines[i].getBoundingClientRect().width;
+        // A centred line also pays for the gaps between its words.
+        if (lines[i].parentNode.classList.contains('row-centered')) {
+          natural += 0.26 * REF * Math.max(0, kids.length - 1);
+        }
+        if (natural > 0 && avail > 0) scale = Math.min(scale, avail / natural);
+      }
+      if (!isFinite(scale)) { page.style.fontSize = previous; return; }
+
+      page.style.fontSize = Math.max(8, REF * scale) + 'px';
+      fitOrnaments(page);
+    }
+
+    /// An ornamental glyph — a surah band or a basmala — carrying the metrics
+    /// fitOrnaments needs, plus the probe that reveals its baseline.
+    function ornament(kind, text, metrics) {
+      var el = document.createElement('div');
+      el.className = 'ornament ' + kind;
+      el.appendChild(document.createTextNode(text || ''));
+      var probe = document.createElement('i');
+      probe.className = 'baseline-probe';
+      el.appendChild(probe);
+      el.dataset.w = metrics.w;
+      el.dataset.h = metrics.h;
+      el.dataset.c = metrics.c;
+      return el;
+    }
+
+    /// Sizes each ornament against its own row — not against the body text, so
+    /// it keeps the same presence on a dense page and on a sparse one — and
+    /// drops its ink onto the row's centre line. The glyph's ink is not
+    /// centred on its baseline, so the offset is measured rather than guessed:
+    /// the probe reports where the baseline actually landed.
+    function fitOrnaments(page) {
+      // The surah band spans the measure the way a printed header does; the
+      // basmala is set noticeably narrower, as it is in the Mushaf.
+      var FILL = {
+        'surah-header': { width: 0.98, height: 0.86 },
+        'basmala': { width: 0.64, height: 0.62 }
+      };
+
+      page.querySelectorAll('.ornament').forEach(function (el) {
+        var w = parseFloat(el.dataset.w);
+        var h = parseFloat(el.dataset.h);
+        var c = parseFloat(el.dataset.c);
+        if (!(w > 0) || !(h > 0)) return;
+
+        var row = el.parentNode.getBoundingClientRect();
+        if (row.width <= 0 || row.height <= 0) return;
+
+        var fill = FILL[el.classList.contains('basmala') ? 'basmala' : 'surah-header'];
+        var size = Math.min(row.width * fill.width / w, row.height * fill.height / h);
+        el.style.transform = '';
+        el.style.fontSize = size + 'px';
+
+        var baseline = el.querySelector('.baseline-probe').getBoundingClientRect().top;
+        var inkCentre = baseline - c * size;
+        el.style.transform = 'translateY(' + (row.top + row.height / 2 - inkCentre) + 'px)';
+      });
+    }
+
+    function highlightAyah(surah, ayah) {
+      clearHighlight();
+      var sel = '.word[data-surah="' + surah + '"][data-ayah="' + ayah + '"]';
+      document.querySelectorAll(sel).forEach(function (n) { n.classList.add('ayah-highlight'); });
+    }
+
+    function clearHighlight() {
+      document.querySelectorAll('.word.ayah-highlight').forEach(function (n) {
+        n.classList.remove('ayah-highlight');
+      });
+    }
+
+    function highlightWord() {}
+
+    function setAccent(color) {
+      try { document.documentElement.style.setProperty('--accent', color); } catch (e) {}
+    }
+
+    function setDark(dark) {
+      var root = document.documentElement;
+      // `night` also flips the ornament fonts to their light-on-dark palette.
+      root.classList.toggle('night', !!dark);
+      if (dark) {
+        root.style.setProperty('--bg', '#0d0f12');
+        root.style.setProperty('--ink', '#f1ece2');
+      } else {
+        root.style.setProperty('--bg', '#ffffff');
+        root.style.setProperty('--ink', '#111111');
+      }
+    }
+
+    window.initializeData = initializeData;
+    window.loadPage = loadPage;
+    window.highlightAyah = highlightAyah;
+    window.highlightWord = highlightWord;
+    window.clearHighlight = clearHighlight;
+    window.setAccent = setAccent;
+    window.setDark = setDark;
+    window.addEventListener('resize', function () { if (quranData) fitPage(); });
+  </script>
+
+<script>
+(function(){
+  var P=+(location.hash.slice(1))||1;
+  fetch('quran_pages.json').then(function(r){return r.json()}).then(function(d){
+    currentPage=P; setDark(true); document.documentElement.style.setProperty('--bg','#171717'); document.body.style.background='#171717';
+    initializeData(d); try{parent.postMessage({mushaf:'ready'},'*')}catch(e){}
+  }).catch(function(){document.getElementById('quran-page').textContent='مقدرتش أحمّل المصحف'});
+  window.addEventListener('message',function(e){ if(e.data&&e.data.go){ window.scrollTo(0,0); loadPage(e.data.go); } if(e.data&&e.data.hl){highlightAyah(e.data.hl[0],e.data.hl[1])} });
+  var sx=0,sy=0,t0=0;
+  document.addEventListener('touchstart',function(e){sx=e.touches[0].clientX;sy=e.touches[0].clientY;t0=Date.now()},{passive:true});
+  document.addEventListener('touchend',function(e){var dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;
+    if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.6){parent.postMessage({swipe:dx>0?1:-1},'*')}
+    else if(Math.abs(dx)<10&&Math.abs(dy)<10&&Date.now()-t0<300){parent.postMessage({tap:1},'*')}},{passive:true});
+})();
+</script></body>
+
+</html>

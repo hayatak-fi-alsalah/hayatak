@@ -303,14 +303,6 @@ V.quran = async () => {
     <div class="seg"><button data-qtab="s" class="${tab === 's' ? 'on' : ''}">سورة</button><button data-qtab="j" class="${tab === 'j' ? 'on' : ''}">جزء</button></div>${list}`
   };
 };
-function mushafPage(q, n) {
-  const p = q.pages[n - 1]; let out = '';
-  p.forEach(([s, a, t]) => {
-    if (a === 1) { out += `<div class="sf"><i></i><b>سورة ${q.surahs[s - 1].name}</b><i></i></div>`; if (s !== 1 && s !== 9) out += '<div class="bsm">بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</div>'; }
-    out += `${t} <span class="vn">${num(a)}</span> `;
-  });
-  return out;
-}
 const AYB = 'https://cdn.islamic.network/quran/audio/64/ar.alafasy/';
 let qpA = null, qpOn = false, qAuto = false;
 function pageAyahs(q, n) { const pre = []; let c = 0; q.surahs.forEach(s => { pre[s.n] = c; c += s.ayahs; }); return q.pages[n - 1].map(([s, a]) => pre[s] + a); }
@@ -331,30 +323,31 @@ async function dlPage(n) {
 }
 V.reader = async n => {
   const q = await loadQu(); n = Math.max(1, Math.min(604, +n || 1)); store.set('qlast', n); stopQ();
-  const qs = store.get('qs', 26), bm = store.get('qbm', 0);
+  const bm = store.get('qbm', 0);
   const surah = q.surahs[q.pages[n - 1][0][0] - 1].name, juz = q.pages[n - 1][0][3];
   if (qAuto) { qAuto = false; setTimeout(() => playPage(n), 400); }
   return {
-    head: `<div class="qtop"><a class="ib qback" href="#/quran" aria-label="رجوع">→</a><a class="qchip" href="#/quran" data-qjuz>الجزء ${num(juz)}</a><a class="qchip" href="#/quran">${surah}</a></div>`,
-    body: `<div class="qpage" data-n="${n}" data-cap="${qs}">${mushafPage(q, n)}</div>
-    <div class="qmore" id="qmore" hidden><button class="chip" data-qs="-2">أ-</button><button class="chip" data-qs="2">أ+</button><button class="chip" data-wdone="${n}">✓ قرأت الصفحة (ورد اليوم)</button></div>
-    <div class="qctl"><a class="qb" href="#/quran/p/${Math.min(604, n + 1)}" aria-label="التالية">${IC.next}</a><button class="qb" id="qplay" data-qplay="${n}" aria-label="استماع">${IC.play}</button><button class="qb" data-qdl="${n}" aria-label="تحميل الصوت">${IC.dl}</button><a class="qb" href="#/quran" aria-label="الفهرس">${IC.list}</a><button class="qb${bm === n ? ' on' : ''}" id="qstar" data-qbm="${n}" aria-label="مكان الوقوف">${IC.star}</button><button class="qb" data-qmore aria-label="المزيد">${IC.more}</button><span class="qn">${num(n)}</span><a class="qb" href="#/quran/p/${Math.max(1, n - 1)}" aria-label="السابقة">${IC.prev}</a></div>`
+    head: `<div class="qtop"><a class="ib qback" href="#/quran" aria-label="رجوع">→</a><a class="qchip" href="#/quran" id="qjz">الجزء ${num(juz)}</a><a class="qchip" href="#/quran" id="qsn">${surah}</a></div>`,
+    body: `<iframe class="qframe" id="qframe" title="المصحف" src="mushaf/index.html#${n}"></iframe>
+    <div class="qtafs" id="qtafs" hidden><div class="qth"><b>التفسير الميسّر · صفحة <span id="qtn"></span></b><button class="chip" data-qtaf>إغلاق</button></div><div class="qtb" id="qtb"></div></div>
+    <div class="qmore" id="qmore" hidden><button class="chip" data-wdone="${n}" id="qwd">✓ قرأت الصفحة (ورد اليوم)</button></div>
+    <div class="qctl"><button class="qb" id="qplay" data-qplay="${n}" aria-label="استماع">${IC.play}</button><button class="qb" data-qdl="${n}" id="qdl" aria-label="تحميل الصوت">${IC.dl}</button><a class="qb" href="#/quran" aria-label="الفهرس">${IC.list}</a><button class="qb qtf" data-qtaf aria-label="تفسير الصفحة">تفسير</button><button class="qb${bm === n ? ' on' : ''}" id="qstar" data-qbm="${n}" aria-label="مكان الوقوف">${IC.star}</button><button class="qb" data-qmore aria-label="المزيد">${IC.more}</button><span class="qn" id="qnum">${num(n)}</span></div>`
   };
 };
-const qFit = {}; let qFontOK = false;
-function fitQ() {
-  const el = $('.qpage'); if (!el) return;
-  const ct = $('.qctl'); if (ct) { const h = ct.getBoundingClientRect().top - el.getBoundingClientRect().top - 8; if (h > 200) el.style.height = h + 'px'; }
-  const n = el.dataset.n, cap = +el.dataset.cap || 26, key = n + '|' + cap + '|' + el.clientWidth + '|' + el.clientHeight + '|' + (qFontOK ? 1 : 0);
-  if (qFit[key]) { el.style.fontSize = qFit[key] + 'px'; return; }
-  let lo = 12, hi = Math.min(cap, 34);
-  while (hi - lo > 0.5) { const mid = (lo + hi) / 2; el.style.fontSize = mid + 'px'; if (el.scrollHeight <= el.clientHeight + 1) lo = mid; else hi = mid; }
-  el.style.fontSize = lo + 'px'; qFit[key] = lo;
+let qCur = 1;
+async function qGo(n) {
+  n = Math.max(1, Math.min(604, n)); const f = $('#qframe'); if (!f || !f.contentWindow) return;
+  const q = await loadQu(); qCur = n; store.set('qlast', n); stopQ();
+  f.contentWindow.postMessage({ go: n }, '*'); const tb = $('#qtafs'); if (tb && !tb.hidden) { tb.hidden = true; } history.replaceState(null, '', '#/quran/p/' + n);
+  const sn = $('#qsn'), jz = $('#qjz'); if (sn) sn.textContent = q.surahs[q.pages[n - 1][0][0] - 1].name; if (jz) jz.textContent = 'الجزء ' + num(q.pages[n - 1][0][3]);
+  const nm = $('#qnum'); if (nm) nm.textContent = num(n);
+  const bm = store.get('qbm', 0), st = $('#qstar'); if (st) { st.dataset.qbm = n; st.classList.toggle('on', bm === n); }
+  const pl = $('#qplay'); if (pl) pl.dataset.qplay = n; const dl = $('#qdl'); if (dl) dl.dataset.qdl = n; const wd = $('#qwd'); if (wd) wd.dataset.wdone = n;
 }
-let qSw = null;
-document.addEventListener('touchstart', e => { qSw = $('.qpage') && e.target.closest('.qpage') ? [e.touches[0].clientX, e.touches[0].clientY] : null; }, { passive: true });
-document.addEventListener('touchend', e => { if (!qSw) return; const dx = e.changedTouches[0].clientX - qSw[0], dy = e.changedTouches[0].clientY - qSw[1]; qSw = null; if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 2) { const n = +$('.qpage').dataset.n; location.hash = '#/quran/p/' + (dx < 0 ? Math.min(604, n + 1) : Math.max(1, n - 1)); } }, { passive: true });
-window.addEventListener('resize', () => { if ($('.qpage')) fitQ(); });
+window.addEventListener('message', e => {
+  const d = e.data || {}; if (!$('#qframe')) return;
+  if (d.swipe) qGo(qCur + (d.swipe > 0 ? 1 : -1)); else if (d.tap) { const m = $('#qmore'); if (m && !m.hidden) m.hidden = true; }
+});
 V.surah = async n => { const q = await loadQu(); const i = q.pages.findIndex(p => p.some(a => a[0] === +n && a[1] === 1)); return V.reader(i + 1); };
 V.marks = async () => {
   const marks = store.get('marks', []);
@@ -460,7 +453,7 @@ V.qibla = () => {
   const b = ((Math.atan2(Math.sin(dl), Math.cos(place.lat * r) * Math.tan(21.4225 * r) - Math.sin(place.lat * r) * Math.cos(dl)) / r) + 360) % 360;
   const names = ['شمال', 'شمال شرق', 'شرق', 'جنوب شرق', 'جنوب', 'جنوب غرب', 'غرب', 'شمال غرب'];
   window.__qb = b;
-  return { head: hdr('القبلة', '', true), body: `<div class="center"><div class="compass" id="cmp"><div class="dial" id="qn"><i class="n">ش</i><i class="e">شرق</i><i class="s">ج</i><i class="w">غرب</i></div><div class="ar" id="qar" style="transform:rotate(${b}deg)"><span>🕋</span></div><div class="hub">✦</div></div><div class="big">${num(Math.round(b))}°</div><div class="sub">${names[Math.round(b / 45) % 8]} من ${place.name}، مقاسة من الشمال مع عقارب الساعة</div><div class="muted" style="margin-top:6px">لف الموبايل لحد ما الكعبة تبقى لفوق، والدايرة هتخضر لما تبقى مظبوط.</div><button class="btn" data-compass style="margin-top:12px">شغّل البوصلة</button><div class="muted" id="cmsg" style="margin-top:8px"></div></div>` };
+  return { head: hdr('القبلة', '', true), body: `<div class="center"><div class="compass" id="cmp" style="--b:${b};--h:0"><span class="top" aria-hidden="true">▲</span><div class="dial" id="qn"><i class="n">شمال</i><i class="e">شرق</i><i class="s">جنوب</i><i class="w">غرب</i></div><div class="ar" id="qar"><span class="kb"><svg class="kaaba" viewBox="0 0 40 40" width="38" height="38" aria-hidden="true"><path d="M20 4 35 11v19L20 37 5 30V11z" fill="#262626"/><path d="M20 4 35 11 20 18 5 11z" fill="#5a5a5a"/><path d="M5 15.5 20 22.5 35 15.5v3.2L20 25.7 5 18.7z" fill="#e0b64a"/><path d="M20 22.5V37" stroke="#0e0e0e" stroke-width="1"/><rect x="23" y="26" width="5" height="7" rx=".8" fill="#e0b64a" transform="skewY(-24) translate(0 11)"/></svg></span></div><div class="hub">✦</div></div><div class="qstat" id="qstat">لف الموبايل لحد ما الكعبة تبقى لفوق</div><div class="big">${num(Math.round(b))}°</div><div class="sub">${names[Math.round(b / 45) % 8]} من ${place.name}، مقاسة من الشمال مع عقارب الساعة</div><button class="btn" data-compass style="margin-top:12px">شغّل البوصلة</button><div class="muted" id="cmsg" style="margin-top:8px">حط الموبايل مفرود على كفّك بعيد عن المعادن والمغناطيس.</div></div>` };
 };
 V.settings = () => ({
   head: hdr('الإعدادات', '', true),
@@ -515,14 +508,14 @@ async function render() {
   $('#nav').innerHTML = NAV.map(([k, e, n]) => `<a href="#/${k}" class="${top === k ? 'on' : ''}"><span class="i">${e}</span>${n}</a>`).join('');
   if (location.hash !== lastH && !(h[1] === 'p')) window.scrollTo(0, 0); lastH = location.hash;
   if (r === 'tasbih') tasInit();
-  if ($('.qpage')) { fitQ(); if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { qFontOK = true; fitQ(); }); }
+  if ($('#qframe')) qCur = +location.hash.split('/').pop() || 1;
   if (r === 'settings' && navigator.permissions) navigator.permissions.query({ name: 'geolocation' }).then(p => { const el = $('#pm-loc'); if (el) el.textContent = ({ granted: 'مسموح ✓', denied: 'مرفوض', prompt: 'لسه' })[p.state] || p.state; }).catch(() => {});
 }
 window.addEventListener('hashchange', () => { const hh = (location.hash || '#/prayers').slice(2).split('/')[0]; const tp = ['prayers', 'quran', 'adhkar', 'alarms', 'track'].includes(hh) ? hh : (hh === 'city' || hh === 'settings' || hh === 'fasting' ? 'prayers' : hh === 'tasbih' || hh === 'qibla' ? 'adhkar' : hh); document.querySelectorAll('#nav a').forEach(x => x.classList.toggle('on', x.getAttribute('href') === '#/' + tp)); render(); });
 
 /* ---------- events ---------- */
 document.addEventListener('click', async e => {
-  const t = e.target.closest('[data-chk],[data-snd],[data-city],[data-geo],[data-dh],[data-dreset],[data-qtab],[data-mark],[data-qs],[data-wdone],[data-ppd],[data-tday],[data-tchk],[data-alarm],[data-premin],[data-iqmin],[data-iqd],[data-qset],[data-qjuz],[data-qmore],[data-qplay],[data-qdl],[data-qbm],[data-dlv],[data-dla],[data-aud],[data-nat],[data-qa],[data-qdla],[data-qdlall],[data-arate],[data-off],[data-school],[data-sprev],[data-asound],[data-aprev],[data-loc],[data-retry],[data-sh],[data-shclose],[data-testalarm],[data-tasnav],[data-tast],[data-tasreset],[data-compass],[data-share],[data-install],[data-suhoor],[data-suhmin],[data-method]');
+  const t = e.target.closest('[data-chk],[data-snd],[data-city],[data-geo],[data-dh],[data-dreset],[data-qtab],[data-mark],[data-qs],[data-qtaf],[data-wdone],[data-ppd],[data-tday],[data-tchk],[data-alarm],[data-premin],[data-iqmin],[data-iqd],[data-qset],[data-qjuz],[data-qmore],[data-qplay],[data-qdl],[data-qbm],[data-dlv],[data-dla],[data-aud],[data-nat],[data-qa],[data-qdla],[data-qdlall],[data-arate],[data-off],[data-school],[data-sprev],[data-asound],[data-aprev],[data-loc],[data-retry],[data-sh],[data-shclose],[data-testalarm],[data-tasnav],[data-tast],[data-tasreset],[data-compass],[data-share],[data-install],[data-suhoor],[data-suhmin],[data-method]');
   if (Date.now() - lpAt < 700 && e.target.closest('[data-chk],[data-tchk]')) { return; }
   if (!t) return; const d = t.dataset;
   if (d.retry !== undefined) { if (/^#\/prayers/.test(location.hash) || !location.hash) refreshTimes(); else render(); return; }
@@ -552,6 +545,7 @@ document.addEventListener('click', async e => {
   else if (d.iqd) { const [k, dv] = d.iqd.split(':'), o = store.get('iqg', {}); o[k] = Math.max(0, Math.min(60, iqGap(k) + +dv)); store.set('iqg', o); render(); }
   else if (d.qset) { const r = getRem(); const m = +d.qset; r.q.t = String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); r.q.on = true; store.set('rem', r); render(); }
   else if (d.qjuz !== undefined) { store.set('qtab', 'j'); }
+  else if (d.qtaf !== undefined) toggleTafsir()
   else if (d.qmore !== undefined) { const m = $('#qmore'); if (m) m.hidden = !m.hidden; }
   else if (d.qplay) { if (qpOn) stopQ(); else playPage(+d.qplay); }
   else if (d.qdl) { dlPage(+d.qdl); }
@@ -622,15 +616,33 @@ function tasInit() {
   b.addEventListener('touchmove', ev => { if (sx != null && Math.abs(ev.touches[0].clientX - sx) > 60) { sx = ev.touches[0].clientX; bump(); } }, { passive: true });
 }
 /* compass */
-let cmpOn = false;
+let cmpOn = false, cmpH = null;
 async function startCompass() {
   const D = window.DeviceOrientationEvent, m = $('#cmsg');
   try { if (D && D.requestPermission) { if ((await D.requestPermission()) !== 'granted') { m.textContent = 'محتاج إذن الحساسات'; return; } } } catch (e) { m.textContent = 'مقدرتش أشغل البوصلة'; return; }
   if (!D) { m.textContent = 'الجهاز مش بيدعم البوصلة'; return; }
-  if (cmpOn) return; cmpOn = true; m.textContent = 'لف الموبايل لحد ما السهم يبقى لفوق';
-  const h = ev => { const v = typeof ev.webkitCompassHeading === 'number' ? ev.webkitCompassHeading : (ev.alpha != null ? (360 - ev.alpha) % 360 : null); if (v == null) return; const ar = $('#qar'); if (!ar) return; const rot = window.__qb - v; ar.style.transform = `rotate(${rot}deg)`; const qd = $('#qn'); if (qd) qd.style.transform = `rotate(${-v}deg)`; const dd = Math.abs(((rot % 360) + 540) % 360 - 180); $('#cmp').classList.toggle('ok', 180 - dd < 5); };
-  window.addEventListener('deviceorientationabsolute', h, true); window.addEventListener('deviceorientation', h, true);
+  if (cmpOn) return; cmpOn = true; m.textContent = 'شغّالة. لف الموبايل ببطء.';
+  const evn = 'ondeviceorientationabsolute' in window ? 'deviceorientationabsolute' : 'deviceorientation';
+  let target = null, cur = null, raf = 0, okState = false, lastSig = 0;
+  const diff = (a, b) => ((a - b + 540) % 360) - 180;
+  const paint = () => {
+    raf = 0; const cmp = $('#cmp'); if (!cmp) { stopC(); return; }
+    if (target == null) return;
+    if (cur == null) cur = target; else cur += diff(target, cur) * 0.18;
+    cmp.style.setProperty('--h', cur.toFixed(1));
+    const err = Math.abs(diff(window.__qb, cur)), ok = err < 4;
+    if (ok !== okState) { okState = ok; cmp.classList.toggle('ok', ok); const st = $('#qstat'); if (st) st.textContent = ok ? '✓ إنت في اتجاه القبلة' : 'لف الموبايل لحد ما الكعبة تبقى لفوق'; if (ok && navigator.vibrate) { try { navigator.vibrate(25); } catch (e) {} } }
+    if (Math.abs(diff(target, cur)) > 0.15) raf = requestAnimationFrame(paint);
+  };
+  const h = ev => {
+    if (evn === 'deviceorientation' && ev.absolute === false && typeof ev.webkitCompassHeading !== 'number') { /* relative sensor: still best effort */ }
+    const v = typeof ev.webkitCompassHeading === 'number' ? ev.webkitCompassHeading : (ev.alpha != null ? (360 - ev.alpha) % 360 : null); if (v == null) return;
+    target = v; if (!raf) raf = requestAnimationFrame(paint);
+  };
+  function stopC() { try { window.removeEventListener(evn, h, true); } catch (e) {} if (raf) cancelAnimationFrame(raf); raf = 0; cmpOn = false; }
+  cmpH = stopC; window.addEventListener(evn, h, true);
 }
+window.addEventListener('hashchange', () => { if (cmpOn && !/qibla/.test(location.hash) && cmpH) cmpH(); });
 
 /* ---------- notifications ---------- */
 let swReg = null, fired = {}, audio = null;
@@ -816,3 +828,22 @@ document.addEventListener('change', e => {
   if (t.dataset.rt) { const r = getRem(); r[t.dataset.rt].t = t.value || r[t.dataset.rt].t; store.set('rem', r); toast('اتحفظ ✓'); }
   else if (t.dataset.rc) { const r = getRem(); r[t.dataset.rc].on = t.checked; store.set('rem', r); }
 });
+
+/* tafsir (Al-Muyassar) */
+async function tafsirFor(n) {
+  const q = await loadQu(), by = {}; q.pages[n - 1].forEach(([s, a]) => (by[s] = by[s] || []).push(a));
+  const c = await caches.open('hq-tafsir'); let out = '';
+  for (const s of Object.keys(by)) {
+    const u = 'https://cdn.jsdelivr.net/gh/spa5k/tafsir_api@main/tafsir/ar-tafsir-muyassar/' + s + '.json';
+    let r = await c.match(u); if (!r) { const f = await fetch(u); if (!f.ok) throw 0; await c.put(u, f.clone()); r = f; }
+    const d = await r.json();
+    by[s].forEach(a => { const t = d.find(x => x.ayah === a); if (t) out += `<div class="tfa"><span class="vn">${num(a)}</span> <span class="tfs">${q.surahs[s - 1].name}</span><p>${t.text.replace(/</g, '&lt;').replace(/\n+/g, '<br>')}</p></div>`; });
+  }
+  return out;
+}
+async function toggleTafsir() {
+  const b = $('#qtafs'); if (!b) return;
+  if (!b.hidden) { b.hidden = true; return; }
+  $('#qtn').textContent = num(qCur); $('#qtb').innerHTML = '<div class="muted center">بنحمّل…</div>'; b.hidden = false;
+  try { $('#qtb').innerHTML = await tafsirFor(qCur) || '<div class="muted center">مفيش تفسير للصفحة دي</div>'; $('#qtb').scrollTop = 0; } catch (e) { $('#qtb').innerHTML = '<div class="muted center">التفسير محتاج إنترنت أول مرة، وبعدها بيشتغل من غير نت</div>'; }
+}
