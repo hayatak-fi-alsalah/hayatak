@@ -156,3 +156,19 @@ nav#nav{transform:translateZ(0);box-shadow:0 2px 10px #0006}
 .chk.miss{border-color:#e5646b;color:#e5646b;background:rgba(229,100,107,.12)}
 .tag b{font-weight:600}.tag .ta{color:#5fd39a}.tag .tc{color:#4aa8ff}.tag .tm{color:#e8c26a}.tag .tl{color:#f0902f}.tag .tx{color:#e5646b}
 .iq{font-size:12px;color:var(--ink2);font-weight:400;margin-top:2px}
+
+/* mushaf reader */
+.qtop{display:flex;align-items:center;gap:10px;padding:6px 4px}
+.qchip{background:#2b2933;color:var(--ink);border-radius:20px;padding:8px 16px;text-decoration:none;font-size:15px;font-family:AmiriQuran,Cairo,serif}
+.qtop .qchip:last-child{margin-inline-start:auto}
+.qpage{background:#151515;border-radius:14px;padding:12px 12px 18px;font-family:AmiriQuran,serif;font-size:var(--qs,27px);line-height:2.25;text-align:justify;text-align-last:center;color:#f3efe4}
+.qpage .sf{display:block;text-align:center;margin:10px 0 12px;padding:8px 10px;border:2px solid #d9d2bd;outline:2px solid #d9d2bd;outline-offset:3px;border-radius:4px;background:linear-gradient(90deg,transparent 0 6%,rgba(217,210,189,.08) 6% 94%,transparent 94%);position:relative;line-height:1.7;text-align-last:center}
+.qpage .sf b{display:block;font-weight:400;border:1.5px solid #d9d2bd;border-radius:40px;margin:0 20%;padding:0 6px;font-size:.95em}
+.qpage .sf::before,.qpage .sf::after{content:"";position:absolute;top:50%;width:30px;height:30px;margin-top:-15px;border:2px solid #d9d2bd;border-radius:50%;box-shadow:0 0 0 4px #151515,0 0 0 6px #d9d2bd}
+.qpage .sf::before{right:5%}.qpage .sf::after{left:5%}
+.qpage .bsm{text-align:center;text-align-last:center;margin:2px 0 4px}
+.vn{display:inline-flex;align-items:center;justify-content:center;min-width:1.6em;height:1.6em;border:1.5px solid var(--gold);border-radius:50%;font-size:.5em;color:var(--gold);margin:0 .3em;vertical-align:middle;font-family:Cairo,sans-serif;line-height:1}
+.qctl{position:sticky;bottom:96px;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px;z-index:3}
+.qb{width:46px;height:46px;border-radius:50%;background:#2b2933;color:var(--ink);border:0;font-size:20px;display:grid;place-items:center;text-decoration:none;cursor:pointer;flex:none}
+.qb.on{color:var(--gold)}
+.qn{min-width:38px;height:38px;border-radius:12px;background:#2b2933;color:var(--ink);display:grid;place-items:center;font-size:14px;padding:0 8px}
