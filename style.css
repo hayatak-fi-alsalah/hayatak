@@ -144,3 +144,6 @@ button,a,.dh,.rec,.prow{touch-action:manipulation}
 button:active,.dh:active,.chip:active{transform:scale(.97)}
 .card,.dh{contain:layout style}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+#view{animation:vin .12s ease-out}@keyframes vin{from{opacity:.4}to{opacity:1}}
+nav#nav{transform:translateZ(0);box-shadow:0 2px 10px #0006}

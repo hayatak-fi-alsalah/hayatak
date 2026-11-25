@@ -419,7 +419,7 @@ async function render() {
   if (r === 'tasbih') tasInit();
   if (r === 'settings' && navigator.permissions) navigator.permissions.query({ name: 'geolocation' }).then(p => { const el = $('#pm-loc'); if (el) el.textContent = ({ granted: 'مسموح ✓', denied: 'مرفوض', prompt: 'لسه' })[p.state] || p.state; }).catch(() => {});
 }
-window.addEventListener('hashchange', render);
+window.addEventListener('hashchange', () => { const hh = (location.hash || '#/prayers').slice(2).split('/')[0]; const tp = ['prayers', 'quran', 'adhkar', 'alarms', 'track'].includes(hh) ? hh : (hh === 'city' || hh === 'settings' ? 'prayers' : hh === 'tasbih' || hh === 'qibla' ? 'adhkar' : hh); document.querySelectorAll('#nav a').forEach(x => x.classList.toggle('on', x.getAttribute('href') === '#/' + tp)); render(); });
 
 /* ---------- events ---------- */
 document.addEventListener('click', async e => {
