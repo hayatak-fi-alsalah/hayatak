@@ -70,11 +70,11 @@ async function loadDay(d) {
 let failed = false, rtok = 0, lastRT = 0;
 function pruneCache() { try { const keep = new Set(); for (let i = -1; i <= 2; i++) keep.add(dstr(new Date(Date.now() + i * 864e5))); Object.keys(localStorage).forEach(k => { if (!k.startsWith('hq.t2.')) return; const m = k.match(/(\d\d-\d\d-\d{4})$/); if (m && !keep.has(m[1])) localStorage.removeItem(k); }); } catch (e) {} }
 async function refreshTimes() {
-  lastRT = Date.now(); const my = ++rtok; ready = false; failed = false; render();
+  lastRT = Date.now(); const my = ++rtok; failed = false; const ld0 = store.get('lastDay'), pk = place.id + place.lat.toFixed(2) + place.lon.toFixed(2); if (ld0 && ld0.t && ld0.pk === pk && !day) { day = ld0; ready = true; } else if (!(day && day.pk === pk)) ready = false; render();
   try {
     const d = new Date(), t = new Date(Date.now() + 864e5);
     const [a, b] = await Promise.all([loadDay(d), loadDay(t).catch(() => null)]);
-    if (my !== rtok) return; day = a; tomorrow = b; day.d = iso(); ready = true; pruneCache();
+    if (my !== rtok) return; day = a; tomorrow = b; day.d = iso(); day.pk = pk; ready = true; pruneCache();
   } catch (e) { if (my !== rtok) return; const ld = store.get('lastDay'); day = ld && ld.t ? ld : null; tomorrow = null; ready = !!day; failed = !day; if (day) toast('مفيش اتصال، بعرض آخر مواقيت محفوظة'); else toast('مفيش اتصال، جرب تاني'); }
   if (day && ready) store.set('lastDay', day);
   render();
