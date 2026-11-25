@@ -27,15 +27,18 @@ jobs:
           mkdir -p res/raw
           for v in aaqib sabah makkah; do cp ../../../../../audio/adhan-$v.mp3 res/raw/adhan_$v.mp3; done
           rm -rf res/mipmap-anydpi-v26 res/drawable-v24 res/drawable/ic_launcher_background.xml
-          for d in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
-            n=${d%%:*}; s=${d##*:}
-            mkdir -p res/mipmap-$n
-            convert ../../../../../icons/maskable-512.png -resize ${s}x${s} res/mipmap-$n/ic_launcher.png
-            cp res/mipmap-$n/ic_launcher.png res/mipmap-$n/ic_launcher_round.png
-            cp res/mipmap-$n/ic_launcher.png res/mipmap-$n/ic_launcher_foreground.png
-          done
-          mkdir -p res/drawable
-          convert ../../../../../icons/icon-192.png -channel RGB -evaluate set 100% +channel -resize 96x96 res/drawable/ic_stat_hayatak.png
+          pip install pillow -q
+          python3 - <<'PY'
+          from PIL import Image
+          root='../../../../../icons/'
+          for n,sz in [('mdpi',48),('hdpi',72),('xhdpi',96),('xxhdpi',144),('xxxhdpi',192)]:
+              import os; os.makedirs('res/mipmap-'+n,exist_ok=True)
+              im=Image.open(root+'maskable-512.png').convert('RGBA').resize((sz,sz),Image.LANCZOS)
+              for f in ('ic_launcher','ic_launcher_round','ic_launcher_foreground'): im.save(f'res/mipmap-{n}/{f}.png')
+          os.makedirs('res/drawable',exist_ok=True)
+          g=Image.open(root+'icon-192.png').convert('RGBA').resize((96,96),Image.LANCZOS)
+          w=Image.new('RGBA',g.size,(255,255,255,0)); w.putalpha(g.getchannel('A')); wh=Image.new('RGBA',g.size,(255,255,255,255)); wh.putalpha(g.getchannel('A')); wh.save('res/drawable/ic_stat_hayatak.png')
+          PY
           M=AndroidManifest.xml
           for p in POST_NOTIFICATIONS SCHEDULE_EXACT_ALARM RECEIVE_BOOT_COMPLETED VIBRATE WAKE_LOCK; do
             grep -q "android.permission.$p\"" $M || sed -i "s#<application#<uses-permission android:name=\"android.permission.$p\" />\n    <application#" $M
