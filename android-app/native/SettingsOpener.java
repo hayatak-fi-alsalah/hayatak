@@ -28,6 +28,19 @@ public class SettingsOpener extends Plugin {
     }
 
     @PluginMethod
+    public void persist(PluginCall call) {
+        try {
+            android.content.Context c = getContext();
+            Intent i = new Intent(c, HayatakService.class);
+            if (Boolean.TRUE.equals(call.getBoolean("on", true))) {
+                i.putExtra("items", call.getString("items", "[]"));
+                if (android.os.Build.VERSION.SDK_INT >= 26) c.startForegroundService(i); else c.startService(i);
+            } else { c.stopService(i); }
+            call.resolve();
+        } catch (Exception e) { call.reject(String.valueOf(e.getMessage())); }
+    }
+
+    @PluginMethod
     public void isIgnoring(PluginCall call) {
         boolean v = false;
         try {

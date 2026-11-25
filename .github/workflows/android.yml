@@ -48,11 +48,12 @@ jobs:
           cp ../../../../native/res/styles.xml res/values/styles.xml
           cp ../../../../native/res/splash_bg.xml res/drawable/splash_bg.xml
           cp ../../../../native/splash_icon.png res/drawable/splash_icon.png
-          JD=java/com/hayatak/salah; mkdir -p $JD; cp ../../../../native/SettingsOpener.java ../../../../native/MainActivity.java $JD/
+          JD=java/com/hayatak/salah; mkdir -p $JD; cp ../../../../native/SettingsOpener.java ../../../../native/MainActivity.java ../../../../native/HayatakService.java $JD/
           M=AndroidManifest.xml
-          for p in POST_NOTIFICATIONS SCHEDULE_EXACT_ALARM RECEIVE_BOOT_COMPLETED REQUEST_IGNORE_BATTERY_OPTIMIZATIONS VIBRATE WAKE_LOCK; do
+          for p in ACCESS_FINE_LOCATION ACCESS_COARSE_LOCATION FOREGROUND_SERVICE FOREGROUND_SERVICE_SPECIAL_USE POST_NOTIFICATIONS SCHEDULE_EXACT_ALARM RECEIVE_BOOT_COMPLETED REQUEST_IGNORE_BATTERY_OPTIMIZATIONS VIBRATE WAKE_LOCK; do
             grep -q "android.permission.$p\"" $M || sed -i "s#<application#<uses-permission android:name=\"android.permission.$p\" />\n    <application#" $M
           done
+          grep -q HayatakService $M || sed -i 's#</application>#<service android:name=".HayatakService" android:exported="false" android:foregroundServiceType="specialUse"><property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="prayer_countdown_notification" /></service>\n    </application>#' $M
           sed -i 's#<resources>#<resources>#' res/values/strings.xml
           cat $M | head -40
       - name: Build release APK
